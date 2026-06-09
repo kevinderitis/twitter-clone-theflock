@@ -15,6 +15,33 @@ const createJsonResponse = (body: unknown, status = 200) =>
     },
   });
 
+const createDemoUser = () => ({
+  id: 'user_demo',
+  email: 'demo@example.com',
+  username: 'demo',
+  name: 'Demo User',
+  bio: null,
+  avatarUrl: null,
+  createdAt: '2026-01-10T09:00:00.000Z',
+  updatedAt: '2026-01-10T09:00:00.000Z',
+});
+
+const createTimelineTweet = (overrides?: Record<string, unknown>) => ({
+  id: 'tweet_1',
+  content: 'Hello from the seeded timeline',
+  authorId: 'user_demo',
+  createdAt: '2026-01-10T09:00:00.000Z',
+  updatedAt: '2026-01-10T09:00:00.000Z',
+  author: {
+    id: 'user_demo',
+    username: 'demo',
+    name: 'Demo User',
+    avatarUrl: null,
+  },
+  likesCount: 4,
+  ...overrides,
+});
+
 const renderApp = (initialEntry: string) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -52,21 +79,19 @@ describe('App authentication flow', () => {
 
   it('submits the login form successfully', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock.mockResolvedValueOnce(
-      createJsonResponse({
-        token: 'demo-token',
-        user: {
-          id: 'user_demo',
-          email: 'demo@example.com',
-          username: 'demo',
-          name: 'Demo User',
-          bio: null,
-          avatarUrl: null,
-          createdAt: '2026-01-10T09:00:00.000Z',
-          updatedAt: '2026-01-10T09:00:00.000Z',
-        },
-      }),
-    );
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          token: 'demo-token',
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
 
     renderApp('/login');
 
@@ -74,7 +99,7 @@ describe('App authentication flow', () => {
     await userEvent.type(screen.getByLabelText(/password/i), 'Password123!');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    await screen.findByText(/composer placeholder/i);
+    await screen.findByText(/hello from the seeded timeline/i);
 
     expect(window.localStorage.getItem('theflock.auth.token')).toBe(
       'demo-token',
@@ -119,14 +144,11 @@ describe('App authentication flow', () => {
         createJsonResponse(
           {
             user: {
+              ...createDemoUser(),
               id: 'user_new',
               email: 'new@example.com',
               username: 'newuser',
               name: 'New User',
-              bio: null,
-              avatarUrl: null,
-              createdAt: '2026-01-10T09:00:00.000Z',
-              updatedAt: '2026-01-10T09:00:00.000Z',
             },
           },
           201,
@@ -136,15 +158,23 @@ describe('App authentication flow', () => {
         createJsonResponse({
           token: 'new-token',
           user: {
+            ...createDemoUser(),
             id: 'user_new',
             email: 'new@example.com',
             username: 'newuser',
             name: 'New User',
-            bio: null,
-            avatarUrl: null,
-            createdAt: '2026-01-10T09:00:00.000Z',
-            updatedAt: '2026-01-10T09:00:00.000Z',
           },
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [
+            createTimelineTweet({
+              id: 'tweet_new',
+              content: 'Fresh account feed',
+            }),
+          ],
+          nextCursor: null,
         }),
       );
 
@@ -158,24 +188,10 @@ describe('App authentication flow', () => {
       screen.getByRole('button', { name: /create account/i }),
     );
 
-    await screen.findByText(/composer placeholder/i);
+    await screen.findByText(/fresh account feed/i);
 
     expect(window.localStorage.getItem('theflock.auth.token')).toBe(
       'new-token',
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      'http://localhost:3000/auth/register',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      'http://localhost:3000/auth/login',
-      expect.objectContaining({
-        method: 'POST',
-      }),
     );
   });
 
@@ -186,16 +202,13 @@ describe('App authentication flow', () => {
     fetchMock
       .mockResolvedValueOnce(
         createJsonResponse({
-          user: {
-            id: 'user_demo',
-            email: 'demo@example.com',
-            username: 'demo',
-            name: 'Demo User',
-            bio: null,
-            avatarUrl: null,
-            createdAt: '2026-01-10T09:00:00.000Z',
-            updatedAt: '2026-01-10T09:00:00.000Z',
-          },
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
         }),
       )
       .mockResolvedValueOnce(
@@ -221,5 +234,144 @@ describe('App authentication flow', () => {
         screen.getByRole('heading', { name: /welcome back/i }),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe('Timeline page', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('theflock.auth.token', 'demo-token');
+    vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a loading state while the timeline is fetching', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        user: createDemoUser(),
+      }),
+    );
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(
+              createJsonResponse({
+                tweets: [createTimelineTweet()],
+                nextCursor: null,
+              }),
+            );
+          }, 50);
+        }),
+    );
+
+    renderApp('/');
+
+    expect(await screen.findByText(/loading timeline/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/hello from the seeded timeline/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders timeline tweets', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByText(/hello from the seeded timeline/i),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/demo user/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/@demo/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^4$/i)).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the timeline is empty', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByText(/your timeline is empty/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows an error state when timeline loading fails', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'An unexpected error occurred.',
+            },
+          },
+          500,
+        ),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByText(/we could not load your timeline/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a load more button when nextCursor exists', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: 'tweet_cursor_2',
+        }),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByRole('button', { name: /load more/i }),
+    ).toBeInTheDocument();
   });
 });

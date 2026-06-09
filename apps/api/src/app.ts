@@ -50,7 +50,11 @@ export const createApp = ({
   userSearchStore,
 }: AppDependencies = {}) => {
   const app = express();
-  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
+  const configuredWebOrigin = process.env.WEB_ORIGIN?.trim();
+  const webOrigin =
+    configuredWebOrigin && configuredWebOrigin.length > 0
+      ? configuredWebOrigin
+      : 'http://localhost:5173';
 
   app.use((request, response, next) => {
     response.header('Access-Control-Allow-Origin', webOrigin);
