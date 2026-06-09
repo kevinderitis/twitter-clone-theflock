@@ -147,7 +147,12 @@ class InMemoryTimelineStore implements TimelineStore {
   ) {}
 
   private tweets = new Map<string, TweetRecord>();
+  private likes = new Set<string>();
   private tweetCount = 0;
+
+  private likeKey(userId: string, tweetId: string) {
+    return `${userId}:${tweetId}`;
+  }
 
   async seedTweet(
     input: CreateTweetInput & { createdAt?: Date; updatedAt?: Date },
@@ -174,11 +179,27 @@ class InMemoryTimelineStore implements TimelineStore {
         name: author.name,
         avatarUrl: author.avatarUrl,
       },
+      likesCount: 0,
     };
 
     this.tweets.set(tweet.id, tweet);
 
     return tweet;
+  }
+
+  async seedLike(userId: string, tweetId: string) {
+    const tweet = this.tweets.get(tweetId);
+
+    if (!tweet) {
+      throw new Error('Tweet not found in test store.');
+    }
+
+    const key = this.likeKey(userId, tweetId);
+
+    if (!this.likes.has(key)) {
+      this.likes.add(key);
+      tweet.likesCount += 1;
+    }
   }
 
   async listTimeline(
@@ -215,7 +236,10 @@ class InMemoryTimelineStore implements TimelineStore {
       : pageTweets;
 
     return {
-      tweets: visibleTweets,
+      tweets: visibleTweets.map((tweet) => ({
+        ...tweet,
+        likedByMe: this.likes.has(this.likeKey(viewerId, tweet.id)),
+      })),
       nextCursor: hasMore ? (visibleTweets.at(-1)?.id ?? null) : null,
     };
   }
@@ -304,10 +328,52 @@ describe('Timeline routes', () => {
             name: 'Grace Hopper',
             avatarUrl: null,
           },
+          likesCount: 0,
+          likedByMe: false,
         },
       ],
       nextCursor: null,
     });
+  });
+
+  it('includes likedByMe for the authenticated user', async () => {
+    const viewer = await createAuthenticatedUser();
+    const followedUser = await createAuthenticatedUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+    });
+    const token = signAuthToken(viewer.id);
+
+    await followStore.createFollow(viewer.id, followedUser.id);
+    const tweet = await timelineStore.seedTweet({
+      content: 'Already liked',
+      authorId: followedUser.id,
+    });
+    await timelineStore.seedLike(viewer.id, tweet.id);
+
+    const response = await request(createTestApp())
+      .get('/timeline')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.tweets).toEqual([
+      {
+        id: tweet.id,
+        content: 'Already liked',
+        authorId: followedUser.id,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        author: {
+          id: followedUser.id,
+          username: 'gracehopper',
+          name: 'Grace Hopper',
+          avatarUrl: null,
+        },
+        likesCount: 1,
+        likedByMe: true,
+      },
+    ]);
   });
 
   it('does not return tweets from unfollowed users', async () => {

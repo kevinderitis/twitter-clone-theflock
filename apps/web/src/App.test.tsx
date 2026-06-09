@@ -39,6 +39,7 @@ const createTimelineTweet = (overrides?: Record<string, unknown>) => ({
     avatarUrl: null,
   },
   likesCount: 4,
+  likedByMe: false,
   ...overrides,
 });
 
@@ -367,6 +368,160 @@ describe('Timeline page', () => {
     expect(
       await screen.findByRole('button', { name: /load more/i }),
     ).toBeInTheDocument();
+  });
+
+  it('renders a like button and the likes count', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByRole('button', { name: /^like$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^4$/i)).toBeInTheDocument();
+  });
+
+  it('updates the count when liking a tweet', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      )
+      .mockResolvedValueOnce(createJsonResponse({ likesCount: 5 }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet({ likesCount: 5, likedByMe: true })],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^like$/i }),
+    );
+
+    await screen.findByRole('button', { name: /^unlike$/i });
+    expect(screen.getByText(/^5$/i)).toBeInTheDocument();
+  });
+
+  it('updates the count when unliking a tweet', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet({ likesCount: 4, likedByMe: true })],
+          nextCursor: null,
+        }),
+      )
+      .mockResolvedValueOnce(createJsonResponse({ likesCount: 3 }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet({ likesCount: 3, likedByMe: false })],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^unlike$/i }),
+    );
+
+    await screen.findByRole('button', { name: /^like$/i });
+    expect(screen.getByText(/^3$/i)).toBeInTheDocument();
+  });
+
+  it('shows a friendly message when the like mutation fails', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Could not update like right now.',
+            },
+          },
+          500,
+        ),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^like$/i }),
+    );
+
+    expect(
+      await screen.findByText(/could not update like right now/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^like$/i })).toBeEnabled();
+  });
+
+  it('disables the like button while the mutation is pending', async () => {
+    let resolveLike: ((value: Response) => void) | undefined;
+    const pendingLike = new Promise<Response>((resolve) => {
+      resolveLike = resolve;
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      )
+      .mockImplementationOnce(() => pendingLike)
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet({ likesCount: 5, likedByMe: true })],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    const button = await screen.findByRole('button', { name: /^like$/i });
+    await userEvent.click(button);
+
+    expect(
+      await screen.findByRole('button', { name: /ing\.\.\.$/i }),
+    ).toBeDisabled();
+
+    resolveLike?.(createJsonResponse({ likesCount: 5 }));
+    await screen.findByRole('button', { name: /^unlike$/i });
   });
 
   it('renders the composer and keeps submit disabled when empty', async () => {

@@ -13,6 +13,7 @@ export type TimelineTweet = {
   updatedAt: string;
   author: TimelineAuthor;
   likesCount?: number;
+  likedByMe?: boolean;
 };
 
 export type TimelineResponse = {

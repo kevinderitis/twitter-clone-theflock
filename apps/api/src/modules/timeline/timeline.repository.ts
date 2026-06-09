@@ -7,29 +7,39 @@ import type {
   TimelineStore,
 } from './timeline.types.js';
 
-const tweetSelect = {
-  id: true,
-  content: true,
-  authorId: true,
-  createdAt: true,
-  updatedAt: true,
-  author: {
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      avatarUrl: true,
+const createTweetSelect = (viewerId: string) =>
+  ({
+    id: true,
+    content: true,
+    authorId: true,
+    createdAt: true,
+    updatedAt: true,
+    author: {
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+      },
     },
-  },
-  _count: {
-    select: {
-      likes: true,
+    likes: {
+      where: {
+        userId: viewerId,
+      },
+      select: {
+        userId: true,
+      },
+      take: 1,
     },
-  },
-} satisfies Prisma.TweetSelect;
+    _count: {
+      select: {
+        likes: true,
+      },
+    },
+  }) satisfies Prisma.TweetSelect;
 
 type PrismaTweet = Prisma.TweetGetPayload<{
-  select: typeof tweetSelect;
+  select: ReturnType<typeof createTweetSelect>;
 }>;
 
 const toTweetRecord = (tweet: PrismaTweet) => ({
@@ -40,6 +50,7 @@ const toTweetRecord = (tweet: PrismaTweet) => ({
   updatedAt: tweet.updatedAt,
   author: tweet.author,
   likesCount: tweet._count.likes,
+  likedByMe: tweet.likes.length > 0,
 });
 
 const toTimelinePage = (tweets: PrismaTweet[], limit: number): TimelinePage => {
@@ -54,6 +65,7 @@ const toTimelinePage = (tweets: PrismaTweet[], limit: number): TimelinePage => {
 
 export class PrismaTimelineStore implements TimelineStore {
   async listTimeline(viewerId: string, query: TimelineQuery) {
+    const tweetSelect = createTweetSelect(viewerId);
     const follows = await prisma.follow.findMany({
       where: { followerId: viewerId },
       select: { followingId: true },

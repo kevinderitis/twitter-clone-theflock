@@ -13,6 +13,7 @@ export type TweetRecord = {
   updatedAt: Date;
   author: TweetAuthor;
   likesCount: number;
+  likedByMe?: boolean;
 };
 
 export type CreateTweetInput = {
