@@ -8,27 +8,32 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  username    String    @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
-  bio         String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  tweets      Tweet[]
-  likes       Like[]
-  following   Follow[]  @relation("following")
-  followers   Follow[]  @relation("followers")
+  username     String    @unique
+  name         String
+  bio          String?
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tweets       Tweet[]
+  likes        Like[]
+  following    Follow[]  @relation("following")
+  followers    Follow[]  @relation("followers")
 }
 
 model Tweet {
   id        String   @id @default(cuid())
-  content   String
+  content   String   @db.VarChar(280)
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes     Like[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
 
 model Follow {
@@ -39,6 +44,7 @@ model Follow {
   following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
+  @@index([followingId, createdAt(sort: Desc)])
 }
 
 model Like {
@@ -49,5 +55,5 @@ model Like {
   tweet     Tweet    @relation(fields: [tweetId], references: [id], onDelete: Cascade)
 
   @@id([userId, tweetId])
+  @@index([tweetId, createdAt(sort: Desc)])
 }
-

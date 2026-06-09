@@ -7,12 +7,12 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src tests --ext .ts",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
+    "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:seed": "tsx prisma/seed.ts",
     "start": "node dist/server.js",
     "test": "vitest run"
-  },
-  "prisma": {
-    "schema": "prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",

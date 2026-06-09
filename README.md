@@ -36,6 +36,33 @@ Twitter/X clone technical challenge scaffold.
 - Entry point: `apps/api/src/server.ts`
 - Health endpoint: `GET /health`
 - Prisma schema: `apps/api/prisma/schema.prisma`
+- Prisma client singleton: `apps/api/src/lib/prisma.ts`
+
+## Database Commands
+
+Generate the Prisma client:
+
+```bash
+npm run prisma:generate --workspace api
+```
+
+Apply committed migrations from the host:
+
+```bash
+npm run prisma:migrate:deploy --workspace api
+```
+
+Apply committed migrations inside Docker:
+
+```bash
+docker compose run --rm api npm run prisma:migrate:deploy --workspace api
+```
+
+Run the placeholder seed script:
+
+```bash
+npm run prisma:seed --workspace api
+```
 
 ### Web
 
@@ -49,5 +76,5 @@ Twitter/X clone technical challenge scaffold.
 ## Next Steps
 
 - Add auth flows and JWT issuance
-- Add Prisma migrations
+- Add database-backed API features
 - Add shared contracts package if cross-app types become useful
