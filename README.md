@@ -78,10 +78,26 @@ Apply committed migrations inside Docker:
 docker compose run --rm api npm run prisma:migrate:deploy --workspace api
 ```
 
-Run the placeholder seed script:
+Run the demo seed script:
 
 ```bash
-npm run prisma:seed --workspace api
+npm run db:seed
+```
+
+Run the seed inside Docker:
+
+```bash
+docker compose run --rm api npm run db:seed --workspace api
+```
+
+Demo credentials:
+
+```text
+demo@example.com
+Password123!
+
+kevin@example.com
+Password123!
 ```
 
 ### Web

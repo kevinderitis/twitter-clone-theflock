@@ -7,10 +7,11 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src tests --ext .ts",
+    "db:seed": "tsx prisma/seed.ts",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
-    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed": "npm run db:seed",
     "start": "node dist/server.js",
     "test": "vitest run"
   },
