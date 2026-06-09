@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { TweetCard } from '../components/TweetCard';
+import { TweetComposer } from '../components/TweetComposer';
 import { PageShell } from '../components/PageShell';
 import { useAuth } from '../modules/auth/use-auth';
 import { getTimelinePageRequest } from '../modules/timeline/timeline-api';
@@ -41,13 +42,7 @@ export const TimelinePage = () => {
       }
     >
       <div className="space-y-4">
-        <div className="rounded-[1.75rem] border border-dashed border-brand-200 bg-brand-50/80 p-5">
-          <p className="text-sm font-semibold text-slate-900">Feed preview</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            The composer stays out of scope for now, but the timeline below is
-            already backed by the real authenticated API.
-          </p>
-        </div>
+        <TweetComposer />
 
         {timelineQuery.isPending ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">

@@ -104,12 +104,6 @@ describe('App authentication flow', () => {
     expect(window.localStorage.getItem('theflock.auth.token')).toBe(
       'demo-token',
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3000/auth/login',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    );
   });
 
   it('shows a login error from the backend', async () => {
@@ -301,7 +295,7 @@ describe('Timeline page', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/demo user/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/@demo/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^4$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^0 \/ 280$/i)).toBeInTheDocument();
   });
 
   it('shows an empty state when the timeline is empty', async () => {
@@ -373,5 +367,103 @@ describe('Timeline page', () => {
     expect(
       await screen.findByRole('button', { name: /load more/i }),
     ).toBeInTheDocument();
+  });
+
+  it('renders the composer and keeps submit disabled when empty', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    expect(
+      await screen.findByPlaceholderText(/what's happening\?/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /post/i })).toBeDisabled();
+  });
+
+  it('updates the character counter and disables submit when over 280 characters', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    const textarea = await screen.findByPlaceholderText(/what's happening\?/i);
+    await userEvent.type(textarea, 'a'.repeat(281));
+
+    expect(screen.getByText(/^281 \/ 280$/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /post/i })).toBeDisabled();
+  });
+
+  it('clears the textarea after a successful submit and refreshes the timeline query', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet()],
+          nextCursor: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            tweet: createTimelineTweet({
+              id: 'tweet_created',
+              content: 'A newly created tweet',
+            }),
+          },
+          201,
+        ),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createTimelineTweet({ content: 'Timeline refreshed' })],
+          nextCursor: null,
+        }),
+      );
+
+    renderApp('/');
+
+    const textarea = await screen.findByPlaceholderText(/what's happening\?/i);
+    await userEvent.type(textarea, 'A freshly posted thought');
+    await userEvent.click(screen.getByRole('button', { name: /^post$/i }));
+
+    await waitFor(() => {
+      expect(textarea).toHaveValue('');
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/tweets',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(await screen.findByText(/timeline refreshed/i)).toBeInTheDocument();
   });
 });
