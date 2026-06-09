@@ -9,6 +9,7 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "db:seed": "npm run db:seed --workspace api",
+    "db:setup": "npm run db:setup --workspace api",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",

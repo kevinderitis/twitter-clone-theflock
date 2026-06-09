@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run db:seed",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src tests --ext .ts",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "npm run prisma:generate && tsx prisma/seed.ts",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",

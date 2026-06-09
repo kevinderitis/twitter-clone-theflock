@@ -1,8 +1,11 @@
 import { type FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { AuthCard, Field } from '../components/AuthCard';
 import { PageShell } from '../components/PageShell';
+import { ApiError } from '../lib/api';
+import { useAuth } from '../modules/auth/use-auth';
 
 type LoginValues = {
   email: string;
@@ -15,11 +18,46 @@ const createEmptyErrors = (): LoginValues => ({
 });
 
 export const LoginPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [values, setValues] = useState<LoginValues>({
     email: '',
     password: '',
   });
   const [errors, setErrors] = useState<LoginValues>(createEmptyErrors);
+  const [submissionError, setSubmissionError] = useState<{
+    message: string;
+    details?: string[];
+  } | null>(null);
+
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: () => {
+      const redirectTarget =
+        typeof location.state === 'object' &&
+        location.state !== null &&
+        'from' in location.state &&
+        typeof location.state.from === 'string'
+          ? location.state.from
+          : '/';
+
+      navigate(redirectTarget, { replace: true });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        setSubmissionError({
+          message: error.message,
+          details: error.details,
+        });
+        return;
+      }
+
+      setSubmissionError({
+        message: 'Something went wrong. Please try again.',
+      });
+    },
+  });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -35,7 +73,8 @@ export const LoginPage = () => {
       return;
     }
 
-    console.info('Login placeholder submit', values);
+    setSubmissionError(null);
+    loginMutation.mutate(values);
   };
 
   return (
@@ -48,6 +87,9 @@ export const LoginPage = () => {
         title="Welcome back"
         subtitle="Use the seeded demo credentials later, or just validate the form states for now."
         submitLabel="Sign in"
+        isSubmitting={loginMutation.isPending}
+        errorMessage={submissionError?.message ?? null}
+        errorDetails={submissionError?.details}
         onSubmit={handleSubmit}
         footer={
           <>

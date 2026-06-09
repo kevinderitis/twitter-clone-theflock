@@ -1,8 +1,11 @@
 import { type FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { AuthCard, Field } from '../components/AuthCard';
 import { PageShell } from '../components/PageShell';
+import { ApiError } from '../lib/api';
+import { useAuth } from '../modules/auth/use-auth';
 
 type RegisterValues = {
   name: string;
@@ -19,6 +22,8 @@ const createEmptyErrors = (): RegisterValues => ({
 });
 
 export const RegisterPage = () => {
+  const navigate = useNavigate();
+  const { register } = useAuth();
   const [values, setValues] = useState<RegisterValues>({
     name: '',
     username: '',
@@ -26,6 +31,30 @@ export const RegisterPage = () => {
     password: '',
   });
   const [errors, setErrors] = useState<RegisterValues>(createEmptyErrors);
+  const [submissionError, setSubmissionError] = useState<{
+    message: string;
+    details?: string[];
+  } | null>(null);
+
+  const registerMutation = useMutation({
+    mutationFn: register,
+    onSuccess: () => {
+      navigate('/', { replace: true });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError) {
+        setSubmissionError({
+          message: error.message,
+          details: error.details,
+        });
+        return;
+      }
+
+      setSubmissionError({
+        message: 'Something went wrong. Please try again.',
+      });
+    },
+  });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,7 +72,8 @@ export const RegisterPage = () => {
       return;
     }
 
-    console.info('Register placeholder submit', values);
+    setSubmissionError(null);
+    registerMutation.mutate(values);
   };
 
   return (
@@ -56,6 +86,9 @@ export const RegisterPage = () => {
         title="Join The Flock"
         subtitle="We are only validating empty states here. API integration comes in the next frontend step."
         submitLabel="Create account"
+        isSubmitting={registerMutation.isPending}
+        errorMessage={submissionError?.message ?? null}
+        errorDetails={submissionError?.details}
         onSubmit={handleSubmit}
         footer={
           <>

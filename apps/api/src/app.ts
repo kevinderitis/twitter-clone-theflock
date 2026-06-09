@@ -50,6 +50,27 @@ export const createApp = ({
   userSearchStore,
 }: AppDependencies = {}) => {
   const app = express();
+  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
+
+  app.use((request, response, next) => {
+    response.header('Access-Control-Allow-Origin', webOrigin);
+    response.header('Vary', 'Origin');
+    response.header(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization',
+    );
+    response.header(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    );
+
+    if (request.method === 'OPTIONS') {
+      response.sendStatus(204);
+      return;
+    }
+
+    next();
+  });
 
   app.use(express.json());
 

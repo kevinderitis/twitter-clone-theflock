@@ -19,8 +19,10 @@ Twitter/X clone technical challenge scaffold.
 ## Quick Start
 
 1. Copy `.env.example` to `.env`
-2. Install dependencies with `npm install`
-3. Start the stack with `docker compose up --build`
+2. Start PostgreSQL with `docker compose up --build -d db`
+3. Apply schema and seed demo data with `docker compose run --rm api npm run db:setup --workspace api`
+4. Start the full stack with `docker compose up --build`
+5. Sign in with `demo@example.com` / `Password123!`
 
 ## Available Scripts
 
@@ -28,6 +30,7 @@ Twitter/X clone technical challenge scaffold.
 - `npm run format`
 - `npm run test`
 - `npm run build`
+- `npm run db:setup`
 
 ## Applications
 
@@ -76,6 +79,18 @@ Apply committed migrations inside Docker:
 
 ```bash
 docker compose run --rm api npm run prisma:migrate:deploy --workspace api
+```
+
+Run the full database setup from the host:
+
+```bash
+npm run db:setup
+```
+
+Run the full database setup inside Docker:
+
+```bash
+docker compose run --rm api npm run db:setup --workspace api
 ```
 
 Run the demo seed script:

@@ -14,6 +14,9 @@ type AuthCardProps = {
   title: string;
   subtitle: string;
   submitLabel: string;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+  errorDetails?: string[];
   footer: ReactNode;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   children: ReactNode;
@@ -57,6 +60,9 @@ export const AuthCard = ({
   title,
   subtitle,
   submitLabel,
+  isSubmitting = false,
+  errorMessage,
+  errorDetails,
   footer,
   onSubmit,
   children,
@@ -71,11 +77,25 @@ export const AuthCard = ({
       <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
         {children}
 
+        {errorMessage ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <p className="font-semibold">{errorMessage}</p>
+            {errorDetails?.length ? (
+              <ul className="mt-2 space-y-1">
+                {errorDetails.map((detail) => (
+                  <li key={detail}>{detail}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+
         <button
           type="submit"
+          disabled={isSubmitting}
           className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          {submitLabel}
+          {isSubmitting ? 'Please wait...' : submitLabel}
         </button>
       </form>
 

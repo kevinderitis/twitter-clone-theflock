@@ -28,9 +28,11 @@ services:
       API_PORT: ${API_PORT}
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      WEB_ORIGIN: ${WEB_ORIGIN}
     ports:
       - '${API_PORT:-3000}:3000'
-    command: sh -c "npm run prisma:generate --workspace api && npm run dev --workspace api"
+    command: sh -c "npm run prisma:generate --workspace api && npm run prisma:migrate:deploy --workspace api && npm run dev --workspace api"
     volumes:
       - .:/app
       - /app/node_modules
