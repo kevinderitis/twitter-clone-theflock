@@ -7,6 +7,9 @@ import type { AuthUserStore } from './modules/auth/auth.types.js';
 import { createFollowRouter } from './modules/follows/follow.router.js';
 import { FollowService } from './modules/follows/follow.service.js';
 import type { FollowStore } from './modules/follows/follow.types.js';
+import { createTimelineRouter } from './modules/timeline/timeline.router.js';
+import { TimelineService } from './modules/timeline/timeline.service.js';
+import type { TimelineStore } from './modules/timeline/timeline.types.js';
 import { createTweetRouter } from './modules/tweets/tweet.router.js';
 import { TweetService } from './modules/tweets/tweet.service.js';
 import type { TweetStore } from './modules/tweets/tweet.types.js';
@@ -16,6 +19,8 @@ type AppDependencies = {
   authUserStore?: AuthUserStore;
   followService?: FollowService;
   followStore?: FollowStore;
+  timelineService?: TimelineService;
+  timelineStore?: TimelineStore;
   tweetService?: TweetService;
   tweetStore?: TweetStore;
 };
@@ -25,6 +30,8 @@ export const createApp = ({
   authUserStore,
   followService,
   followStore,
+  timelineService,
+  timelineStore,
   tweetService,
   tweetStore,
 }: AppDependencies = {}) => {
@@ -47,6 +54,14 @@ export const createApp = ({
       authUserStore,
       followService,
       followStore,
+    }),
+  );
+  app.use(
+    '/timeline',
+    createTimelineRouter({
+      authUserStore,
+      timelineService,
+      timelineStore,
     }),
   );
 

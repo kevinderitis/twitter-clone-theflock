@@ -48,6 +48,8 @@ Twitter/X clone technical challenge scaffold.
 - Follow endpoints:
   - `POST /users/:userId/follow`
   - `DELETE /users/:userId/follow`
+- Timeline endpoint:
+  - `GET /timeline`
 
 ## Database Commands
 
