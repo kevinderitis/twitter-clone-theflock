@@ -103,10 +103,11 @@ Password123!
 ### Web
 
 - Entry point: `apps/web/src/main.tsx`
-- Placeholder routes:
+- Initial UI routes:
+  - `/`
   - `/login`
   - `/register`
-  - `/timeline`
+  - `/search`
   - `/profile/:username`
 
 ## Next Steps
