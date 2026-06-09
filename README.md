@@ -42,6 +42,9 @@ Twitter/X clone technical challenge scaffold.
   - `POST /auth/login`
   - `GET /auth/me`
   - `POST /auth/logout`
+- Tweet endpoints:
+  - `POST /tweets`
+  - `DELETE /tweets/:id`
 
 ## Database Commands
 

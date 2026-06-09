@@ -4,21 +4,36 @@ import { isAppError } from './lib/errors.js';
 import { createAuthRouter } from './modules/auth/auth.router.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import type { AuthUserStore } from './modules/auth/auth.types.js';
+import { createTweetRouter } from './modules/tweets/tweet.router.js';
+import { TweetService } from './modules/tweets/tweet.service.js';
+import type { TweetStore } from './modules/tweets/tweet.types.js';
 
 type AppDependencies = {
   authService?: AuthService;
   authUserStore?: AuthUserStore;
+  tweetService?: TweetService;
+  tweetStore?: TweetStore;
 };
 
 export const createApp = ({
   authService,
   authUserStore,
+  tweetService,
+  tweetStore,
 }: AppDependencies = {}) => {
   const app = express();
 
   app.use(express.json());
 
   app.use('/auth', createAuthRouter({ authService, userStore: authUserStore }));
+  app.use(
+    '/tweets',
+    createTweetRouter({
+      authUserStore,
+      tweetService,
+      tweetStore,
+    }),
+  );
 
   app.get('/health', (_request, response) => {
     response.status(200).json({
