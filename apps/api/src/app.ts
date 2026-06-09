@@ -4,6 +4,9 @@ import { isAppError } from './lib/errors.js';
 import { createAuthRouter } from './modules/auth/auth.router.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import type { AuthUserStore } from './modules/auth/auth.types.js';
+import { createFollowRouter } from './modules/follows/follow.router.js';
+import { FollowService } from './modules/follows/follow.service.js';
+import type { FollowStore } from './modules/follows/follow.types.js';
 import { createTweetRouter } from './modules/tweets/tweet.router.js';
 import { TweetService } from './modules/tweets/tweet.service.js';
 import type { TweetStore } from './modules/tweets/tweet.types.js';
@@ -11,6 +14,8 @@ import type { TweetStore } from './modules/tweets/tweet.types.js';
 type AppDependencies = {
   authService?: AuthService;
   authUserStore?: AuthUserStore;
+  followService?: FollowService;
+  followStore?: FollowStore;
   tweetService?: TweetService;
   tweetStore?: TweetStore;
 };
@@ -18,6 +23,8 @@ type AppDependencies = {
 export const createApp = ({
   authService,
   authUserStore,
+  followService,
+  followStore,
   tweetService,
   tweetStore,
 }: AppDependencies = {}) => {
@@ -32,6 +39,14 @@ export const createApp = ({
       authUserStore,
       tweetService,
       tweetStore,
+    }),
+  );
+  app.use(
+    '/users',
+    createFollowRouter({
+      authUserStore,
+      followService,
+      followStore,
     }),
   );
 
