@@ -3,17 +3,22 @@ import express from 'express';
 import { isAppError } from './lib/errors.js';
 import { createAuthRouter } from './modules/auth/auth.router.js';
 import { AuthService } from './modules/auth/auth.service.js';
+import type { AuthUserStore } from './modules/auth/auth.types.js';
 
 type AppDependencies = {
   authService?: AuthService;
+  authUserStore?: AuthUserStore;
 };
 
-export const createApp = ({ authService }: AppDependencies = {}) => {
+export const createApp = ({
+  authService,
+  authUserStore,
+}: AppDependencies = {}) => {
   const app = express();
 
   app.use(express.json());
 
-  app.use('/auth', createAuthRouter({ authService }));
+  app.use('/auth', createAuthRouter({ authService, userStore: authUserStore }));
 
   app.get('/health', (_request, response) => {
     response.status(200).json({

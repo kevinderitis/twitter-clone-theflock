@@ -27,6 +27,15 @@ type PrismaAuthUser = Prisma.UserGetPayload<{
 const toAuthUserRecord = (user: PrismaAuthUser): AuthUserRecord => user;
 
 export class PrismaAuthUserStore implements AuthUserStore {
+  async findById(id: string) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: authUserSelect,
+    });
+
+    return user ? toAuthUserRecord(user) : null;
+  }
+
   async findByEmail(email: string) {
     const user = await prisma.user.findUnique({
       where: { email },

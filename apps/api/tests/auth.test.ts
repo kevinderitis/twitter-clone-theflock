@@ -2,7 +2,10 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app.js';
-import { hashPassword } from '../src/modules/auth/auth.security.js';
+import {
+  hashPassword,
+  signAuthToken,
+} from '../src/modules/auth/auth.security.js';
 import { AuthService } from '../src/modules/auth/auth.service.js';
 import type {
   AuthUserRecord,
@@ -12,6 +15,10 @@ import type {
 
 class InMemoryAuthUserStore implements AuthUserStore {
   private users = new Map<string, AuthUserRecord>();
+
+  async findById(id: string) {
+    return this.users.get(id) ?? null;
+  }
 
   async findByEmail(email: string) {
     return (
@@ -45,6 +52,12 @@ class InMemoryAuthUserStore implements AuthUserStore {
   }
 }
 
+const createTestApp = (userStore: InMemoryAuthUserStore) =>
+  createApp({
+    authService: new AuthService(userStore),
+    authUserStore: userStore,
+  });
+
 describe('Authentication routes', () => {
   let userStore: InMemoryAuthUserStore;
 
@@ -55,14 +68,14 @@ describe('Authentication routes', () => {
   });
 
   it('registers a user successfully', async () => {
-    const app = createApp({ authService: new AuthService(userStore) });
-
-    const response = await request(app).post('/auth/register').send({
-      email: 'Ada@Example.com',
-      password: 'password123',
-      username: 'AdaLovelace',
-      name: 'Ada Lovelace',
-    });
+    const response = await request(createTestApp(userStore))
+      .post('/auth/register')
+      .send({
+        email: 'Ada@Example.com',
+        password: 'password123',
+        username: 'AdaLovelace',
+        name: 'Ada Lovelace',
+      });
 
     expect(response.status).toBe(201);
     expect(response.body).toEqual({
@@ -81,7 +94,7 @@ describe('Authentication routes', () => {
   });
 
   it('rejects duplicate emails during registration', async () => {
-    const app = createApp({ authService: new AuthService(userStore) });
+    const app = createTestApp(userStore);
 
     await request(app).post('/auth/register').send({
       email: 'ada@example.com',
@@ -108,7 +121,7 @@ describe('Authentication routes', () => {
   });
 
   it('rejects duplicate usernames during registration', async () => {
-    const app = createApp({ authService: new AuthService(userStore) });
+    const app = createTestApp(userStore);
 
     await request(app).post('/auth/register').send({
       email: 'ada@example.com',
@@ -146,12 +159,12 @@ describe('Authentication routes', () => {
       avatarUrl: null,
     });
 
-    const app = createApp({ authService: new AuthService(userStore) });
-
-    const response = await request(app).post('/auth/login').send({
-      email: 'ada@example.com',
-      password: 'password123',
-    });
+    const response = await request(createTestApp(userStore))
+      .post('/auth/login')
+      .send({
+        email: 'ada@example.com',
+        password: 'password123',
+      });
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -182,12 +195,12 @@ describe('Authentication routes', () => {
       avatarUrl: null,
     });
 
-    const app = createApp({ authService: new AuthService(userStore) });
-
-    const response = await request(app).post('/auth/login').send({
-      email: 'ada@example.com',
-      password: 'wrongpassword',
-    });
+    const response = await request(createTestApp(userStore))
+      .post('/auth/login')
+      .send({
+        email: 'ada@example.com',
+        password: 'wrongpassword',
+      });
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({
@@ -196,6 +209,90 @@ describe('Authentication routes', () => {
         message: 'Invalid email or password.',
         details: undefined,
       },
+    });
+  });
+
+  it('returns 401 for GET /auth/me without a token', async () => {
+    const response = await request(createTestApp(userStore)).get('/auth/me');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      error: {
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication is required.',
+        details: undefined,
+      },
+    });
+  });
+
+  it('returns 401 for GET /auth/me with an invalid token', async () => {
+    const response = await request(createTestApp(userStore))
+      .get('/auth/me')
+      .set('Authorization', 'Bearer invalid-token');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Authentication token is invalid.',
+        details: undefined,
+      },
+    });
+  });
+
+  it('returns the current user for GET /auth/me with a valid token', async () => {
+    const passwordHash = await hashPassword('password123');
+    const user = await userStore.seedUser({
+      email: 'ada@example.com',
+      passwordHash,
+      username: 'adalovelace',
+      name: 'Ada Lovelace',
+      bio: null,
+      avatarUrl: null,
+    });
+
+    const token = signAuthToken(user.id);
+
+    const response = await request(createTestApp(userStore))
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      user: {
+        id: user.id,
+        email: 'ada@example.com',
+        username: 'adalovelace',
+        name: 'Ada Lovelace',
+        bio: null,
+        avatarUrl: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      },
+    });
+    expect(response.body.user.passwordHash).toBeUndefined();
+  });
+
+  it('returns success for POST /auth/logout', async () => {
+    const passwordHash = await hashPassword('password123');
+    const user = await userStore.seedUser({
+      email: 'ada@example.com',
+      passwordHash,
+      username: 'adalovelace',
+      name: 'Ada Lovelace',
+      bio: null,
+      avatarUrl: null,
+    });
+
+    const token = signAuthToken(user.id);
+
+    const response = await request(createTestApp(userStore))
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
     });
   });
 });

@@ -30,6 +30,7 @@ export type CreateUserInput = Omit<
 >;
 
 export interface AuthUserStore {
+  findById(id: string): Promise<AuthUserRecord | null>;
   findByEmail(email: string): Promise<AuthUserRecord | null>;
   findByUsername(username: string): Promise<AuthUserRecord | null>;
   createUser(input: CreateUserInput): Promise<AuthUserRecord>;

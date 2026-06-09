@@ -149,4 +149,26 @@ export class AuthService {
       user: toPublicUser(user),
     };
   }
+
+  async getCurrentUser(userId: string) {
+    const user = await this.userStore.findById(userId);
+
+    if (!user) {
+      throw new AppError(
+        401,
+        'INVALID_TOKEN',
+        'Authentication token is invalid.',
+      );
+    }
+
+    return {
+      user: toPublicUser(user),
+    };
+  }
+
+  async logout() {
+    return {
+      success: true,
+    };
+  }
 }
