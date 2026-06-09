@@ -7,6 +7,9 @@ import type { AuthUserStore } from './modules/auth/auth.types.js';
 import { createFollowRouter } from './modules/follows/follow.router.js';
 import { FollowService } from './modules/follows/follow.service.js';
 import type { FollowStore } from './modules/follows/follow.types.js';
+import { createLikeRouter } from './modules/likes/like.router.js';
+import { LikeService } from './modules/likes/like.service.js';
+import type { LikeStore } from './modules/likes/like.types.js';
 import { createTimelineRouter } from './modules/timeline/timeline.router.js';
 import { TimelineService } from './modules/timeline/timeline.service.js';
 import type { TimelineStore } from './modules/timeline/timeline.types.js';
@@ -19,6 +22,8 @@ type AppDependencies = {
   authUserStore?: AuthUserStore;
   followService?: FollowService;
   followStore?: FollowStore;
+  likeService?: LikeService;
+  likeStore?: LikeStore;
   timelineService?: TimelineService;
   timelineStore?: TimelineStore;
   tweetService?: TweetService;
@@ -30,6 +35,8 @@ export const createApp = ({
   authUserStore,
   followService,
   followStore,
+  likeService,
+  likeStore,
   timelineService,
   timelineStore,
   tweetService,
@@ -54,6 +61,15 @@ export const createApp = ({
       authUserStore,
       followService,
       followStore,
+    }),
+  );
+  app.use(
+    '/tweets',
+    createLikeRouter({
+      authUserStore,
+      likeService,
+      likeStore,
+      tweetStore,
     }),
   );
   app.use(
