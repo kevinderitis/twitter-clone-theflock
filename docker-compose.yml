@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: theflock-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: theflock-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      API_PORT: ${API_PORT}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - '${API_PORT:-3000}:3000'
+    command: sh -c "npm run prisma:generate --workspace api && npm run dev --workspace api"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: theflock-web
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - '${WEB_PORT:-5173}:5173'
+    command: npm run dev --workspace web -- --host 0.0.0.0
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+
+volumes:
+  postgres-data:

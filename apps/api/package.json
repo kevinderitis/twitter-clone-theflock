@@ -1,0 +1,29 @@
+{
+  "name": "api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/server.ts",
+    "lint": "eslint src tests --ext .ts",
+    "prisma:generate": "prisma generate",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/supertest": "^6.0.3",
+    "prisma": "^6.9.0",
+    "supertest": "^7.1.1",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.4"
+  }
+}
