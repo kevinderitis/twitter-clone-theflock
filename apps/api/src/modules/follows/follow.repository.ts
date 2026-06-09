@@ -1,7 +1,12 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../../lib/prisma.js';
-import type { FollowRecord, FollowStore } from './follow.types.js';
+import type {
+  FollowListQuery,
+  FollowProfile,
+  FollowRecord,
+  FollowStore,
+} from './follow.types.js';
 
 const followSelect = {
   followerId: true,
@@ -9,11 +14,24 @@ const followSelect = {
   createdAt: true,
 } satisfies Prisma.FollowSelect;
 
+const followProfileSelect = {
+  id: true,
+  username: true,
+  name: true,
+  bio: true,
+  avatarUrl: true,
+} satisfies Prisma.UserSelect;
+
 type PrismaFollow = Prisma.FollowGetPayload<{
   select: typeof followSelect;
 }>;
 
+type PrismaFollowProfile = Prisma.UserGetPayload<{
+  select: typeof followProfileSelect;
+}>;
+
 const toFollowRecord = (follow: PrismaFollow): FollowRecord => follow;
+const toFollowProfile = (user: PrismaFollowProfile): FollowProfile => user;
 
 export class PrismaFollowStore implements FollowStore {
   async createFollow(followerId: string, followingId: string) {
@@ -51,5 +69,43 @@ export class PrismaFollowStore implements FollowStore {
         },
       },
     });
+  }
+
+  async listFollowers(userId: string, query: FollowListQuery) {
+    const users = await prisma.user.findMany({
+      where: {
+        following: {
+          some: {
+            followingId: userId,
+          },
+        },
+      },
+      orderBy: {
+        username: 'asc',
+      },
+      take: query.limit,
+      select: followProfileSelect,
+    });
+
+    return users.map(toFollowProfile);
+  }
+
+  async listFollowing(userId: string, query: FollowListQuery) {
+    const users = await prisma.user.findMany({
+      where: {
+        followers: {
+          some: {
+            followerId: userId,
+          },
+        },
+      },
+      orderBy: {
+        username: 'asc',
+      },
+      take: query.limit,
+      select: followProfileSelect,
+    });
+
+    return users.map(toFollowProfile);
   }
 }

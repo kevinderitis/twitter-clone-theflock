@@ -65,5 +65,37 @@ export const createFollowRouter = ({
     },
   );
 
+  router.get('/:username/followers', async (request, response, next) => {
+    try {
+      const username = Array.isArray(request.params.username)
+        ? request.params.username[0]
+        : request.params.username;
+      const limit = Array.isArray(request.query.limit)
+        ? request.query.limit[0]
+        : request.query.limit;
+
+      const result = await service.getFollowers(username, limit);
+      response.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/:username/following', async (request, response, next) => {
+    try {
+      const username = Array.isArray(request.params.username)
+        ? request.params.username[0]
+        : request.params.username;
+      const limit = Array.isArray(request.query.limit)
+        ? request.query.limit[0]
+        : request.query.limit;
+
+      const result = await service.getFollowing(username, limit);
+      response.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   return router;
 };

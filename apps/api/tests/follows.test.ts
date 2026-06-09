@@ -12,6 +12,8 @@ import type {
   CreateUserInput,
 } from '../src/modules/auth/auth.types.js';
 import type {
+  FollowListQuery,
+  FollowProfile,
   FollowRecord,
   FollowStore,
 } from '../src/modules/follows/follow.types.js';
@@ -56,6 +58,8 @@ class InMemoryAuthUserStore implements AuthUserStore {
 }
 
 class InMemoryFollowStore implements FollowStore {
+  constructor(private readonly userStore: InMemoryAuthUserStore) {}
+
   private follows = new Map<string, FollowRecord>();
 
   private key(followerId: string, followingId: string) {
@@ -81,6 +85,44 @@ class InMemoryFollowStore implements FollowStore {
   async deleteFollow(followerId: string, followingId: string) {
     this.follows.delete(this.key(followerId, followingId));
   }
+
+  async listFollowers(userId: string, query: FollowListQuery) {
+    const followers = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followingId === userId)
+        .map((follow) => this.userStore.findById(follow.followerId)),
+    );
+
+    return followers
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
+  async listFollowing(userId: string, query: FollowListQuery) {
+    const following = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followerId === userId)
+        .map((follow) => this.userStore.findById(follow.followingId)),
+    );
+
+    return following
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
+  private toFollowProfile(user: AuthUserRecord): FollowProfile {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+    };
+  }
 }
 
 describe('Follow routes', () => {
@@ -91,7 +133,7 @@ describe('Follow routes', () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.JWT_EXPIRES_IN = '1h';
     userStore = new InMemoryAuthUserStore();
-    followStore = new InMemoryFollowStore();
+    followStore = new InMemoryFollowStore(userStore);
   });
 
   const createTestApp = () =>
@@ -242,6 +284,146 @@ describe('Follow routes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       success: true,
+    });
+  });
+
+  it('returns followers for a public profile', async () => {
+    const targetUser = await createAuthenticatedUser();
+    const followerA = await createAuthenticatedUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+      bio: 'Compiler pioneer',
+      avatarUrl: 'https://example.com/grace.png',
+    });
+    const followerB = await createAuthenticatedUser({
+      email: 'barbara@example.com',
+      username: 'barbaraliskov',
+      name: 'Barbara Liskov',
+      bio: 'LSP',
+    });
+
+    await followStore.createFollow(followerA.id, targetUser.id);
+    await followStore.createFollow(followerB.id, targetUser.id);
+
+    const response = await request(createTestApp()).get(
+      `/users/${targetUser.username}/followers`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      followers: [
+        {
+          id: followerB.id,
+          username: 'barbaraliskov',
+          name: 'Barbara Liskov',
+          bio: 'LSP',
+          avatarUrl: null,
+        },
+        {
+          id: followerA.id,
+          username: 'gracehopper',
+          name: 'Grace Hopper',
+          bio: 'Compiler pioneer',
+          avatarUrl: 'https://example.com/grace.png',
+        },
+      ],
+    });
+    expect(response.body.followers[0]).not.toHaveProperty('email');
+    expect(response.body.followers[0]).not.toHaveProperty('passwordHash');
+  });
+
+  it('returns users followed by a public profile', async () => {
+    const targetUser = await createAuthenticatedUser();
+    const followedA = await createAuthenticatedUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+      bio: 'Compiler pioneer',
+    });
+    const followedB = await createAuthenticatedUser({
+      email: 'barbara@example.com',
+      username: 'barbaraliskov',
+      name: 'Barbara Liskov',
+      avatarUrl: 'https://example.com/barbara.png',
+    });
+
+    await followStore.createFollow(targetUser.id, followedA.id);
+    await followStore.createFollow(targetUser.id, followedB.id);
+
+    const response = await request(createTestApp()).get(
+      `/users/${targetUser.username}/following`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      following: [
+        {
+          id: followedB.id,
+          username: 'barbaraliskov',
+          name: 'Barbara Liskov',
+          bio: null,
+          avatarUrl: 'https://example.com/barbara.png',
+        },
+        {
+          id: followedA.id,
+          username: 'gracehopper',
+          name: 'Grace Hopper',
+          bio: 'Compiler pioneer',
+          avatarUrl: null,
+        },
+      ],
+    });
+    expect(response.body.following[0]).not.toHaveProperty('email');
+    expect(response.body.following[0]).not.toHaveProperty('passwordHash');
+  });
+
+  it('returns 404 when listing followers for a missing user', async () => {
+    const response = await request(createTestApp()).get(
+      '/users/missing-user/followers',
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'USER_NOT_FOUND',
+        message: 'User not found.',
+        details: undefined,
+      },
+    });
+  });
+
+  it('respects the limit when listing followers', async () => {
+    const targetUser = await createAuthenticatedUser();
+    const followerA = await createAuthenticatedUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+    });
+    const followerB = await createAuthenticatedUser({
+      email: 'barbara@example.com',
+      username: 'barbaraliskov',
+      name: 'Barbara Liskov',
+    });
+
+    await followStore.createFollow(followerA.id, targetUser.id);
+    await followStore.createFollow(followerB.id, targetUser.id);
+
+    const response = await request(createTestApp()).get(
+      `/users/${targetUser.username}/followers?limit=1`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      followers: [
+        {
+          id: followerB.id,
+          username: 'barbaraliskov',
+          name: 'Barbara Liskov',
+          bio: null,
+          avatarUrl: null,
+        },
+      ],
     });
   });
 });

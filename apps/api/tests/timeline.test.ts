@@ -12,6 +12,8 @@ import type {
   CreateUserInput,
 } from '../src/modules/auth/auth.types.js';
 import type {
+  FollowListQuery,
+  FollowProfile,
   FollowRecord,
   FollowStore,
 } from '../src/modules/follows/follow.types.js';
@@ -65,6 +67,8 @@ class InMemoryAuthUserStore implements AuthUserStore {
 }
 
 class InMemoryFollowStore implements FollowStore {
+  constructor(private readonly userStore: InMemoryAuthUserStore) {}
+
   private follows = new Map<string, FollowRecord>();
 
   private key(followerId: string, followingId: string) {
@@ -91,10 +95,48 @@ class InMemoryFollowStore implements FollowStore {
     this.follows.delete(this.key(followerId, followingId));
   }
 
+  async listFollowers(userId: string, query: FollowListQuery) {
+    const followers = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followingId === userId)
+        .map((follow) => this.userStore.findById(follow.followerId)),
+    );
+
+    return followers
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
+  async listFollowing(userId: string, query: FollowListQuery) {
+    const following = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followerId === userId)
+        .map((follow) => this.userStore.findById(follow.followingId)),
+    );
+
+    return following
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
   listByFollower(followerId: string) {
     return [...this.follows.values()].filter(
       (follow) => follow.followerId === followerId,
     );
+  }
+
+  private toFollowProfile(user: AuthUserRecord): FollowProfile {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+    };
   }
 }
 
@@ -188,7 +230,7 @@ describe('Timeline routes', () => {
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.JWT_EXPIRES_IN = '1h';
     userStore = new InMemoryAuthUserStore();
-    followStore = new InMemoryFollowStore();
+    followStore = new InMemoryFollowStore(userStore);
     timelineStore = new InMemoryTimelineStore(userStore, followStore);
   });
 

@@ -3,8 +3,12 @@ import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors.js';
 import type { AuthUserRecord, AuthUserStore } from '../auth/auth.types.js';
-import { followParamsSchema } from './follow.schemas.js';
-import type { FollowStore } from './follow.types.js';
+import {
+  followListQuerySchema,
+  followParamsSchema,
+  followUsernameParamsSchema,
+} from './follow.schemas.js';
+import type { FollowListQuery, FollowStore } from './follow.types.js';
 
 const mapValidationError = (error: ZodError) =>
   error.issues.map((issue) => issue.message);
@@ -88,6 +92,44 @@ export class FollowService {
     };
   }
 
+  async getFollowers(usernameParam: string, limitParam: unknown) {
+    const username = this.validateUsername(usernameParam);
+    const query = this.validateFollowListQuery(limitParam);
+    const targetUser = await this.authUserStore.findByUsername(username);
+
+    if (!targetUser) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found.');
+    }
+
+    const followers = await this.followStore.listFollowers(
+      targetUser.id,
+      query,
+    );
+
+    return {
+      followers,
+    };
+  }
+
+  async getFollowing(usernameParam: string, limitParam: unknown) {
+    const username = this.validateUsername(usernameParam);
+    const query = this.validateFollowListQuery(limitParam);
+    const targetUser = await this.authUserStore.findByUsername(username);
+
+    if (!targetUser) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found.');
+    }
+
+    const following = await this.followStore.listFollowing(
+      targetUser.id,
+      query,
+    );
+
+    return {
+      following,
+    };
+  }
+
   private validateUserId(userIdParam: string) {
     try {
       return followParamsSchema.parse({ userId: userIdParam }).userId;
@@ -97,6 +139,41 @@ export class FollowService {
           400,
           'VALIDATION_ERROR',
           'Invalid follow request.',
+          mapValidationError(error),
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private validateUsername(usernameParam: string) {
+    try {
+      return followUsernameParamsSchema.parse({ username: usernameParam })
+        .username;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          'Invalid follow list request.',
+          mapValidationError(error),
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private validateFollowListQuery(limitParam: unknown): FollowListQuery {
+    try {
+      return followListQuerySchema.parse({ limit: limitParam });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          'Invalid follow list request.',
           mapValidationError(error),
         );
       }
