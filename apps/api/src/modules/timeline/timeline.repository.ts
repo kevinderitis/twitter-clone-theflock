@@ -21,18 +21,33 @@ const tweetSelect = {
       avatarUrl: true,
     },
   },
+  _count: {
+    select: {
+      likes: true,
+    },
+  },
 } satisfies Prisma.TweetSelect;
 
 type PrismaTweet = Prisma.TweetGetPayload<{
   select: typeof tweetSelect;
 }>;
 
+const toTweetRecord = (tweet: PrismaTweet) => ({
+  id: tweet.id,
+  content: tweet.content,
+  authorId: tweet.authorId,
+  createdAt: tweet.createdAt,
+  updatedAt: tweet.updatedAt,
+  author: tweet.author,
+  likesCount: tweet._count.likes,
+});
+
 const toTimelinePage = (tweets: PrismaTweet[], limit: number): TimelinePage => {
   const hasMore = tweets.length > limit;
   const visibleTweets = hasMore ? tweets.slice(0, limit) : tweets;
 
   return {
-    tweets: visibleTweets,
+    tweets: visibleTweets.map(toTweetRecord),
     nextCursor: hasMore ? (visibleTweets.at(-1)?.id ?? null) : null,
   };
 };

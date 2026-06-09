@@ -81,6 +81,7 @@ class InMemoryTweetStore implements TweetStore {
         name: author.name,
         avatarUrl: author.avatarUrl,
       },
+      likesCount: 0,
     };
 
     this.tweets.set(tweet.id, tweet);
@@ -90,6 +91,23 @@ class InMemoryTweetStore implements TweetStore {
 
   async findTweetById(id: string) {
     return this.tweets.get(id) ?? null;
+  }
+
+  async findTweetsByUsername(username: string, limit: number) {
+    return [...this.tweets.values()]
+      .filter((tweet) => tweet.author.username === username)
+      .sort((a, b) => {
+        if (b.createdAt.getTime() !== a.createdAt.getTime()) {
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        }
+
+        return b.id.localeCompare(a.id);
+      })
+      .slice(0, limit);
+  }
+
+  async userExistsByUsername(username: string) {
+    return Boolean(await this.userStore.findByUsername(username));
   }
 
   async deleteTweet(id: string) {
@@ -159,6 +177,7 @@ describe('Tweet routes', () => {
           name: 'Ada Lovelace',
           avatarUrl: null,
         },
+        likesCount: 0,
       },
     });
   });
@@ -282,5 +301,123 @@ describe('Tweet routes', () => {
         details: undefined,
       },
     });
+  });
+
+  it('returns a tweet by id with likesCount', async () => {
+    const user = await createAuthenticatedUser();
+    const tweet = await tweetStore.seedTweet({
+      content: 'Readable tweet',
+      authorId: user.id,
+    });
+    tweet.likesCount = 2;
+
+    const response = await request(createTestApp()).get(`/tweets/${tweet.id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      tweet: {
+        id: tweet.id,
+        content: 'Readable tweet',
+        authorId: user.id,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        author: {
+          id: user.id,
+          username: 'adalovelace',
+          name: 'Ada Lovelace',
+          avatarUrl: null,
+        },
+        likesCount: 2,
+      },
+    });
+  });
+
+  it('returns 404 when a tweet is missing', async () => {
+    const response = await request(createTestApp()).get(
+      '/tweets/tweet_missing',
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'TWEET_NOT_FOUND',
+        message: 'Tweet not found.',
+        details: undefined,
+      },
+    });
+  });
+
+  it('returns user tweets ordered by newest first', async () => {
+    const user = await createAuthenticatedUser();
+    const olderTweet = await tweetStore.seedTweet({
+      content: 'Older tweet',
+      authorId: user.id,
+    });
+    olderTweet.createdAt = new Date('2024-01-01T00:00:00.000Z');
+    olderTweet.updatedAt = olderTweet.createdAt;
+
+    const newerTweet = await tweetStore.seedTweet({
+      content: 'Newer tweet',
+      authorId: user.id,
+    });
+    newerTweet.createdAt = new Date('2024-01-02T00:00:00.000Z');
+    newerTweet.updatedAt = newerTweet.createdAt;
+
+    const response = await request(createTestApp()).get(
+      `/tweets/user/${user.username}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      response.body.tweets.map((tweet: { content: string }) => tweet.content),
+    ).toEqual(['Newer tweet', 'Older tweet']);
+  });
+
+  it('returns 404 when user tweets are requested for a missing user', async () => {
+    const response = await request(createTestApp()).get('/tweets/user/missing');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: {
+        code: 'USER_NOT_FOUND',
+        message: 'User not found.',
+        details: undefined,
+      },
+    });
+  });
+
+  it('includes likesCount in user tweet results', async () => {
+    const user = await createAuthenticatedUser();
+    const tweet = await tweetStore.seedTweet({
+      content: 'Popular tweet',
+      authorId: user.id,
+    });
+    tweet.likesCount = 3;
+
+    const response = await request(createTestApp()).get(
+      `/tweets/user/${user.username}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.tweets[0].likesCount).toBe(3);
+  });
+
+  it('respects limit for user tweets', async () => {
+    const user = await createAuthenticatedUser();
+    await tweetStore.seedTweet({
+      content: 'Tweet 1',
+      authorId: user.id,
+    });
+    await tweetStore.seedTweet({
+      content: 'Tweet 2',
+      authorId: user.id,
+    });
+
+    const response = await request(createTestApp()).get(
+      `/tweets/user/${user.username}?limit=1`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.tweets).toHaveLength(1);
   });
 });

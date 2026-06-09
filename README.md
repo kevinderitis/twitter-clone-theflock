@@ -45,6 +45,8 @@ Twitter/X clone technical challenge scaffold.
 - Tweet endpoints:
   - `POST /tweets`
   - `DELETE /tweets/:id`
+  - `GET /tweets/:tweetId`
+  - `GET /tweets/user/:username?limit=`
   - `POST /tweets/:tweetId/like`
   - `DELETE /tweets/:tweetId/like`
 - Follow endpoints:

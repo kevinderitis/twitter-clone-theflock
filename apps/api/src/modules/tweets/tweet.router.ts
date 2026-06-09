@@ -39,6 +39,19 @@ export const createTweetRouter = ({
     },
   );
 
+  router.get('/:tweetId', async (request, response, next) => {
+    try {
+      const tweetId = Array.isArray(request.params.tweetId)
+        ? request.params.tweetId[0]
+        : request.params.tweetId;
+
+      const result = await service.getTweetById(tweetId);
+      response.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete(
     '/:id',
     requireAuth(resolvedAuthUserStore),
@@ -58,6 +71,19 @@ export const createTweetRouter = ({
       }
     },
   );
+
+  router.get('/user/:username', async (request, response, next) => {
+    try {
+      const username = Array.isArray(request.params.username)
+        ? request.params.username[0]
+        : request.params.username;
+
+      const result = await service.getTweetsByUsername(username, request.query);
+      response.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   return router;
 };

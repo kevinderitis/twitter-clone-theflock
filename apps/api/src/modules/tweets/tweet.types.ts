@@ -12,6 +12,7 @@ export type TweetRecord = {
   createdAt: Date;
   updatedAt: Date;
   author: TweetAuthor;
+  likesCount: number;
 };
 
 export type CreateTweetInput = {
@@ -22,5 +23,7 @@ export type CreateTweetInput = {
 export interface TweetStore {
   createTweet(input: CreateTweetInput): Promise<TweetRecord>;
   findTweetById(id: string): Promise<TweetRecord | null>;
+  findTweetsByUsername(username: string, limit: number): Promise<TweetRecord[]>;
+  userExistsByUsername(username: string): Promise<boolean>;
   deleteTweet(id: string): Promise<void>;
 }

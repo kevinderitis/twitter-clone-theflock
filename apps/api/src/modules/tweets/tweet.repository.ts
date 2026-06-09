@@ -21,13 +21,26 @@ const tweetSelect = {
       avatarUrl: true,
     },
   },
+  _count: {
+    select: {
+      likes: true,
+    },
+  },
 } satisfies Prisma.TweetSelect;
 
 type PrismaTweet = Prisma.TweetGetPayload<{
   select: typeof tweetSelect;
 }>;
 
-const toTweetRecord = (tweet: PrismaTweet): TweetRecord => tweet;
+const toTweetRecord = (tweet: PrismaTweet): TweetRecord => ({
+  id: tweet.id,
+  content: tweet.content,
+  authorId: tweet.authorId,
+  createdAt: tweet.createdAt,
+  updatedAt: tweet.updatedAt,
+  author: tweet.author,
+  likesCount: tweet._count.likes,
+});
 
 export class PrismaTweetStore implements TweetStore {
   async createTweet(input: CreateTweetInput) {
@@ -49,6 +62,30 @@ export class PrismaTweetStore implements TweetStore {
     });
 
     return tweet ? toTweetRecord(tweet) : null;
+  }
+
+  async findTweetsByUsername(username: string, limit: number) {
+    const tweets = await prisma.tweet.findMany({
+      where: {
+        author: {
+          username,
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      select: tweetSelect,
+    });
+
+    return tweets.map(toTweetRecord);
+  }
+
+  async userExistsByUsername(username: string) {
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+
+    return Boolean(user);
   }
 
   async deleteTweet(id: string) {
