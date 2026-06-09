@@ -37,6 +37,9 @@ Twitter/X clone technical challenge scaffold.
 - Health endpoint: `GET /health`
 - Prisma schema: `apps/api/prisma/schema.prisma`
 - Prisma client singleton: `apps/api/src/lib/prisma.ts`
+- Auth endpoints:
+  - `POST /auth/register`
+  - `POST /auth/login`
 
 ## Database Commands
 
