@@ -281,17 +281,16 @@ describe('App authentication flow', () => {
     });
   });
 
-  it('shows Login and Register in the mobile navigation when logged out', async () => {
+  it('does not render app header or mobile navigation on auth pages', async () => {
     renderApp('/login');
 
-    const mobileNav = screen.getByLabelText(/mobile navigation/i);
-
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
     expect(
-      within(mobileNav).getByRole('link', { name: /^login$/i }),
-    ).toBeInTheDocument();
+      screen.queryByLabelText(/mobile navigation/i),
+    ).not.toBeInTheDocument();
     expect(
-      within(mobileNav).getByRole('link', { name: /^join$/i }),
-    ).toBeInTheDocument();
+      screen.getByRole('link', { name: /create one/i }),
+    ).toHaveAttribute('href', '/register');
   });
 
   it('keeps the desktop sidebar present in the layout', async () => {

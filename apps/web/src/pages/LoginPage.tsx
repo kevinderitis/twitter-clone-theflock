@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { AuthCard, Field } from '../components/AuthCard';
-import { PageShell } from '../components/PageShell';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../modules/auth/use-auth';
 

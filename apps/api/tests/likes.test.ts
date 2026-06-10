@@ -95,7 +95,12 @@ class InMemoryTweetStore implements TweetStore {
     return this.tweets.get(id) ?? null;
   }
 
-  async findTweetsByUsername(username: string, limit: number, authUserId?: string) {
+  async findTweetsByUsername(
+    username: string,
+    limit: number,
+    authUserId?: string,
+  ) {
+    void authUserId;
     return [...this.tweets.values()]
       .filter((tweet) => tweet.author.username === username)
       .slice(0, limit);
