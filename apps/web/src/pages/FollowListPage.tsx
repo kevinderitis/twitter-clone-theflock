@@ -3,11 +3,14 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { PageShell } from '../components/PageShell';
+import { PublicUserCard } from '../components/PublicUserCard';
 import { useAuth } from '../modules/auth/use-auth';
 import {
   getFollowersRequest,
   getFollowingRequest,
 } from '../modules/follows/follow-list-api';
+import { getProfileRequest } from '../modules/profile/profile-api';
+import type { ProfileResponse } from '../modules/profile/profile.types';
 import type {
   FollowersResponse,
   FollowListUser,
@@ -16,43 +19,6 @@ import type {
 
 const INITIAL_LIMIT = 20;
 const MAX_LIMIT = 50;
-
-const getInitials = (name: string) =>
-  name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-const FollowUserCard = ({ user }: { user: FollowListUser }) => (
-  <Link
-    to={`/profile/${user.username}`}
-    className="block rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md"
-  >
-    <div className="flex items-start gap-3">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt={`${user.name} avatar`}
-            className="h-full w-full rounded-2xl object-cover"
-          />
-        ) : (
-          getInitials(user.name)
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-950">{user.name}</p>
-        <p className="mt-1 text-sm text-slate-500">@{user.username}</p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          {user.bio ?? 'No bio yet.'}
-        </p>
-      </div>
-    </div>
-  </Link>
-);
 
 export const FollowListPage = ({
   mode,
@@ -63,6 +29,12 @@ export const FollowListPage = ({
   const { token } = useAuth();
   const [limit, setLimit] = useState(INITIAL_LIMIT);
   const resolvedUsername = username?.trim() ?? '';
+  const profileQuery = useQuery<ProfileResponse>({
+    queryKey: ['profile', resolvedUsername],
+    queryFn: () => getProfileRequest(token!, resolvedUsername),
+    enabled: Boolean(token) && resolvedUsername.length > 0,
+    retry: false,
+  });
 
   const followListQuery = useQuery<FollowersResponse | FollowingResponse>({
     queryKey: ['profile', mode, resolvedUsername, limit],
@@ -97,6 +69,10 @@ export const FollowListPage = ({
 
   const canLoadMore = users.length === limit && limit < MAX_LIMIT;
   const title = mode === 'followers' ? 'Followers' : 'Following';
+  const totalCount =
+    mode === 'followers'
+      ? profileQuery.data?.user.followersCount
+      : profileQuery.data?.user.followingCount;
   const showEmptyState =
     !followListQuery.isPending &&
     !followListQuery.isError &&
@@ -105,17 +81,53 @@ export const FollowListPage = ({
   return (
     <PageShell
       eyebrow="Connections"
-      title={`${title} for @${resolvedUsername || 'user'}`}
-      description={`Public ${mode} list for @${resolvedUsername || 'user'} using the existing backend endpoint and incremental limit loading.`}
+      title={`${title}${typeof totalCount === 'number' ? ` · ${totalCount}` : ''}`}
+      description={`Public ${mode} list for @${resolvedUsername || 'user'} with profile counts and incremental limit loading.`}
       aside={
         <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-            List behavior
+            Connection summary
           </p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Link
+              to={`/profile/${resolvedUsername}/followers`}
+              className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                mode === 'followers'
+                  ? 'border-brand-200 bg-brand-50'
+                  : 'border-slate-200 bg-slate-50 hover:border-brand-200'
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Followers
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {profileQuery.data?.user.followersCount ?? '...'}
+              </p>
+            </Link>
+            <Link
+              to={`/profile/${resolvedUsername}/following`}
+              className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                mode === 'following'
+                  ? 'border-brand-200 bg-brand-50'
+                  : 'border-slate-200 bg-slate-50 hover:border-brand-200'
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Following
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {profileQuery.data?.user.followingCount ?? '...'}
+              </p>
+            </Link>
+          </div>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-            <li>Starts with 20 users.</li>
-            <li>Load more increases the requested limit up to 50.</li>
-            <li>Cards stay public and profile-focused in this slice.</li>
+            <li>Starts with 20 users and grows up to the backend max of 50.</li>
+            <li>
+              Load more increases the requested limit instead of cursor paging.
+            </li>
+            <li>
+              Cards stay public, lightweight, and profile-focused in this slice.
+            </li>
           </ul>
         </div>
       }
@@ -157,7 +169,7 @@ export const FollowListPage = ({
         {users.length > 0 ? (
           <div className="space-y-3">
             {users.map((user) => (
-              <FollowUserCard key={user.id} user={user} />
+              <PublicUserCard key={user.id} user={user as FollowListUser} />
             ))}
           </div>
         ) : null}

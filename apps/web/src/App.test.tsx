@@ -1327,6 +1327,11 @@ describe('Follow list pages', () => {
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
       .mockResolvedValueOnce(
         createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
           followers: [createFollowListUser()],
         }),
       );
@@ -1335,12 +1340,20 @@ describe('Follow list pages', () => {
 
     expect(await screen.findByText(/^Grace Hopper$/i)).toBeInTheDocument();
     expect(screen.getByText(/@hopper/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /followers · 12/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders following page users', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
       .mockResolvedValueOnce(
         createJsonResponse({
           following: [
@@ -1361,6 +1374,11 @@ describe('Follow list pages', () => {
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
       .mockResolvedValueOnce(
         createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
           followers: [],
         }),
       );
@@ -1374,6 +1392,11 @@ describe('Follow list pages', () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
       .mockResolvedValueOnce(
         createJsonResponse(
           {
@@ -1399,6 +1422,11 @@ describe('Follow list pages', () => {
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
       .mockResolvedValueOnce(
         createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
           followers: [createFollowListUser()],
         }),
       );
@@ -1417,6 +1445,13 @@ describe('Follow list pages', () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            followersCount: 40,
+          }),
+        }),
+      )
       .mockResolvedValueOnce(
         createJsonResponse({
           followers: Array.from({ length: 20 }, (_, index) =>
@@ -1469,6 +1504,11 @@ describe('Follow list pages', () => {
       )
       .mockResolvedValueOnce(
         createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
           followers: [createFollowListUser()],
         }),
       );
@@ -1481,7 +1521,7 @@ describe('Follow list pages', () => {
 
     expect(await screen.findByText(/^Grace Hopper$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /followers for @demo/i }),
+      screen.getByRole('heading', { name: /followers · 12/i }),
     ).toBeInTheDocument();
   });
 });
