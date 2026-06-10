@@ -81,6 +81,15 @@ const createProfileTweet = (overrides?: Record<string, unknown>) => ({
   ...overrides,
 });
 
+const createFollowListUser = (overrides?: Record<string, unknown>) => ({
+  id: 'user_follow_1',
+  username: 'hopper',
+  name: 'Grace Hopper',
+  bio: 'Compilers, systems, and sharp edges.',
+  avatarUrl: null,
+  ...overrides,
+});
+
 const renderApp = (initialEntry: string) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -1266,6 +1275,213 @@ describe('Profile page', () => {
 
     expect(
       await screen.findByText(/we could not load this profile/i),
+    ).toBeInTheDocument();
+  });
+
+  it('links profile counters to followers and following pages', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    await screen.findByText(/shipping the flock one commit at a time/i);
+
+    expect(screen.getByRole('link', { name: /following 7/i })).toHaveAttribute(
+      'href',
+      '/profile/demo/following',
+    );
+    expect(screen.getByRole('link', { name: /followers 12/i })).toHaveAttribute(
+      'href',
+      '/profile/demo/followers',
+    );
+  });
+});
+
+describe('Follow list pages', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('theflock.auth.token', 'demo-token');
+    vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('renders followers page users', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: [createFollowListUser()],
+        }),
+      );
+
+    renderApp('/profile/demo/followers');
+
+    expect(await screen.findByText(/^Grace Hopper$/i)).toBeInTheDocument();
+    expect(screen.getByText(/@hopper/i)).toBeInTheDocument();
+  });
+
+  it('renders following page users', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          following: [
+            createFollowListUser({ username: 'kevin', name: 'Kevin' }),
+          ],
+        }),
+      );
+
+    renderApp('/profile/demo/following');
+
+    expect(await screen.findByText(/^Kevin$/i)).toBeInTheDocument();
+    expect(screen.getByText(/@kevin/i)).toBeInTheDocument();
+  });
+
+  it('renders an empty state for followers', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: [],
+        }),
+      );
+
+    renderApp('/profile/demo/followers');
+
+    expect(await screen.findByText(/no followers yet/i)).toBeInTheDocument();
+  });
+
+  it('renders an error state for following', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'USER_NOT_FOUND',
+              message: 'User not found.',
+            },
+          },
+          404,
+        ),
+      );
+
+    renderApp('/profile/missing/following');
+
+    expect(
+      await screen.findByText(/we could not load this list/i),
+    ).toBeInTheDocument();
+  });
+
+  it('respects the initial limit parameter', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: [createFollowListUser()],
+        }),
+      );
+
+    renderApp('/profile/demo/followers');
+
+    await screen.findByText(/^Grace Hopper$/i);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/users/demo/followers?limit=20',
+      expect.any(Object),
+    );
+  });
+
+  it('loads additional users by increasing the limit', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: Array.from({ length: 20 }, (_, index) =>
+            createFollowListUser({
+              id: `user_follow_${index}`,
+              username: `user${index}`,
+              name: `User ${index}`,
+            }),
+          ),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: Array.from({ length: 40 }, (_, index) =>
+            createFollowListUser({
+              id: `user_follow_${index}`,
+              username: `user${index}`,
+              name: `User ${index}`,
+            }),
+          ),
+        }),
+      );
+
+    renderApp('/profile/demo/followers');
+
+    expect(await screen.findByText(/^User 19$/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+    expect(await screen.findByText(/^User 39$/i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/users/demo/followers?limit=40',
+      expect.any(Object),
+    );
+  });
+
+  it('profile counters navigate to the correct page', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          followers: [createFollowListUser()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    await userEvent.click(
+      await screen.findByRole('link', { name: /followers 12/i }),
+    );
+
+    expect(await screen.findByText(/^Grace Hopper$/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /followers for @demo/i }),
     ).toBeInTheDocument();
   });
 });

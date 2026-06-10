@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { PageShell } from '../components/PageShell';
 import { ApiError } from '../lib/api';
@@ -34,14 +34,41 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const ProfileStat = ({ label, value }: { label: string; value: number }) => (
-  <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-      {label}
-    </p>
-    <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
-  </div>
-);
+const ProfileStat = ({
+  href,
+  label,
+  value,
+}: {
+  href?: string;
+  label: string;
+  value: number;
+}) => {
+  const className =
+    'rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 transition';
+
+  if (href) {
+    return (
+      <Link
+        to={href}
+        className={`${className} block hover:border-brand-200 hover:bg-brand-50/40`}
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+          {label}
+        </p>
+        <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+    </div>
+  );
+};
 
 const ProfileTweetCard = ({ tweet }: { tweet: ProfileTweet }) => (
   <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -305,10 +332,12 @@ export const ProfilePage = () => {
               />
               <ProfileStat
                 label="Following"
+                href={`/profile/${profileQuery.data.user.username}/following`}
                 value={profileQuery.data.user.followingCount}
               />
               <ProfileStat
                 label="Followers"
+                href={`/profile/${profileQuery.data.user.username}/followers`}
                 value={profileQuery.data.user.followersCount}
               />
             </section>

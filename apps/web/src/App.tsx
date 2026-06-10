@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute, PublicOnlyRoute } from './modules/auth/AuthGate';
 import { useAuth } from './modules/auth/use-auth';
+import { FollowListPage } from './pages/FollowListPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -158,6 +159,22 @@ export const App = () => {
                   element={
                     <ProtectedRoute>
                       <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile/:username/followers"
+                  element={
+                    <ProtectedRoute>
+                      <FollowListPage mode="followers" />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile/:username/following"
+                  element={
+                    <ProtectedRoute>
+                      <FollowListPage mode="following" />
                     </ProtectedRoute>
                   }
                 />

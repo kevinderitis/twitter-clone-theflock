@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app.js';
+import { AppError } from '../src/lib/errors.js';
 import {
   hashPassword,
   signAuthToken,
@@ -34,6 +35,18 @@ class InMemoryAuthUserStore implements AuthUserStore {
   }
 
   async createUser(input: CreateUserInput) {
+    const existingByEmail = await this.findByEmail(input.email);
+
+    if (existingByEmail) {
+      throw new AppError(409, 'EMAIL_TAKEN', 'Email is already in use.');
+    }
+
+    const existingByUsername = await this.findByUsername(input.username);
+
+    if (existingByUsername) {
+      throw new AppError(409, 'USERNAME_TAKEN', 'Username is already in use.');
+    }
+
     const now = new Date();
     const user: AuthUserRecord = {
       id: `user_${this.users.size + 1}`,
