@@ -10,6 +10,10 @@ import {
   unfollowUserRequest,
 } from '../modules/follows/follow-api';
 import {
+  unlikeTweetRequest,
+  likeTweetRequest,
+} from '../modules/likes/like-api';
+import {
   getProfileRequest,
   getProfileTweetsRequest,
 } from '../modules/profile/profile-api';
@@ -44,7 +48,7 @@ const ProfileStat = ({
   value: number;
 }) => {
   const className =
-    'rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 transition';
+    'rounded-[1.5rem] border border-slate-200 bg-slate-50 p-3 sm:p-4 transition';
 
   if (href) {
     return (
@@ -55,7 +59,9 @@ const ProfileStat = ({
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
           {label}
         </p>
-        <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+        <p className="mt-2 text-xl font-semibold text-slate-950 sm:mt-3 sm:text-2xl">
+          {value}
+        </p>
       </Link>
     );
   }
@@ -65,51 +71,163 @@ const ProfileStat = ({
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
         {label}
       </p>
-      <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-950 sm:mt-3 sm:text-2xl">
+        {value}
+      </p>
     </div>
   );
 };
 
-const ProfileTweetCard = ({ tweet }: { tweet: ProfileTweet }) => (
-  <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-    <div className="flex items-start gap-3">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
-        {tweet.author.avatarUrl ? (
-          <img
-            src={tweet.author.avatarUrl}
-            alt={`${tweet.author.name} avatar`}
-            className="h-full w-full rounded-2xl object-cover"
-          />
-        ) : (
-          getInitials(tweet.author.name)
-        )}
-      </div>
+const ProfileTweetCard = ({
+  tweet,
+  profileUsername,
+}: {
+  tweet: ProfileTweet;
+  profileUsername: string;
+}) => {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const [mutationMessage, setMutationMessage] = useState<string | null>(null);
+  const likesCount = tweet.likesCount ?? 0;
+  const likedByMe = tweet.likedByMe ?? false;
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-sm font-semibold text-slate-950">
-            {tweet.author.name}
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      if (!token) {
+        throw new Error('Authentication is required.');
+      }
+
+      return likedByMe
+        ? unlikeTweetRequest(token, tweet.id)
+        : likeTweetRequest(token, tweet.id);
+    },
+    onMutate: async () => {
+      setMutationMessage(null);
+      await queryClient.cancelQueries({
+        queryKey: ['profile', 'tweets', profileUsername],
+      });
+
+      const previousTweets = queryClient.getQueryData<
+        { tweets: ProfileTweet[] }
+      >(['profile', 'tweets', profileUsername]);
+
+      queryClient.setQueryData<
+        { tweets: ProfileTweet[] }
+      >(['profile', 'tweets', profileUsername], (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          tweets: current.tweets.map((t) => {
+            if (t.id !== tweet.id) {
+              return t;
+            }
+
+            const currentLikedByMe = t.likedByMe ?? false;
+            const currentLikesCount = t.likesCount ?? 0;
+
+            return {
+              ...t,
+              likedByMe: !currentLikedByMe,
+              likesCount: currentLikedByMe
+                ? Math.max(0, currentLikesCount - 1)
+                : currentLikesCount + 1,
+            };
+          }),
+        };
+      });
+
+      return { previousTweets };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousTweets) {
+        queryClient.setQueryData(
+          ['profile', 'tweets', profileUsername],
+          context.previousTweets,
+        );
+      }
+
+      setMutationMessage(
+        'We could not update your like right now.',
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['profile', 'tweets', profileUsername],
+      });
+    },
+  });
+
+  return (
+    <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
+          {tweet.author.avatarUrl ? (
+            <img
+              src={tweet.author.avatarUrl}
+              alt={`${tweet.author.name} avatar`}
+              className="h-full w-full rounded-2xl object-cover"
+            />
+          ) : (
+            getInitials(tweet.author.name)
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-sm font-semibold text-slate-950">
+              {tweet.author.name}
+            </p>
+            <p className="text-sm text-slate-500">@{tweet.author.username}</p>
+            <span className="text-xs text-slate-400">
+              {formatTweetDate(tweet.createdAt)}
+            </span>
+          </div>
+
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+            {tweet.content}
           </p>
-          <p className="text-sm text-slate-500">@{tweet.author.username}</p>
-          <span className="text-xs text-slate-400">
-            {formatTweetDate(tweet.createdAt)}
-          </span>
-        </div>
 
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-          {tweet.content}
-        </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                likeMutation.mutate();
+              }}
+              disabled={likeMutation.isPending}
+              aria-pressed={likedByMe}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                likedByMe
+                  ? 'border-brand-500 bg-brand-50 text-brand-700'
+                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+              } disabled:cursor-not-allowed disabled:opacity-70`}
+            >
+              {likeMutation.isPending
+                ? likedByMe
+                  ? 'Unliking...'
+                  : 'Liking...'
+                : likedByMe
+                  ? 'Unlike'
+                  : 'Like'}
+            </button>
 
-        <div className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-          <span>Likes</span>
-          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-            {tweet.likesCount}
-          </span>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <span>Likes</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                {likesCount}
+              </span>
+            </div>
+          </div>
+
+          {mutationMessage ? (
+            <p className="mt-3 text-sm text-rose-600">{mutationMessage}</p>
+          ) : null}
         </div>
       </div>
-    </div>
-  </article>
-);
+    </article>
+  );
+};
 
 const ProfileSummaryCard = ({
   currentUserId,
@@ -269,12 +387,12 @@ export const ProfilePage = () => {
       aside={
         <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Profile notes
+            About profiles
           </p>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-            <li>Counts are fetched from the new profile summary endpoint.</li>
-            <li>Tweet history reuses the existing public read API.</li>
-            <li>Follow actions stay out of this slice on purpose.</li>
+            <li>Follow users to see their posts in your timeline.</li>
+            <li>Like and reply to posts to join the conversation.</li>
+            <li>Your profile shows your posts and the people you follow.</li>
           </ul>
         </div>
       }
@@ -292,7 +410,7 @@ export const ProfilePage = () => {
               user={profileQuery.data.user}
             />
 
-            <section className="grid gap-3 sm:grid-cols-3">
+            <section className="grid grid-cols-3 gap-2 sm:gap-3">
               <ProfileStat
                 label="Tweets"
                 value={profileQuery.data.user.tweetsCount}
@@ -348,7 +466,7 @@ export const ProfilePage = () => {
           {tweets.length > 0 && !isLoading && !isError ? (
             <div className="space-y-4">
               {tweets.map((tweet) => (
-                <ProfileTweetCard key={tweet.id} tweet={tweet} />
+                <ProfileTweetCard key={tweet.id} tweet={tweet} profileUsername={resolvedUsername} />
               ))}
             </div>
           ) : null}

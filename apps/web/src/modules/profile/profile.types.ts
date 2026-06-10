@@ -21,6 +21,7 @@ export type ProfileTweet = {
   createdAt: string;
   updatedAt: string;
   likesCount: number;
+  likedByMe: boolean;
   author: {
     id: string;
     username: string;

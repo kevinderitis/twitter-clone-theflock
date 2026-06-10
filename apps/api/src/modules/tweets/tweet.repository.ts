@@ -64,7 +64,7 @@ export class PrismaTweetStore implements TweetStore {
     return tweet ? toTweetRecord(tweet) : null;
   }
 
-  async findTweetsByUsername(username: string, limit: number) {
+  async findTweetsByUsername(username: string, limit: number, authUserId?: string) {
     const tweets = await prisma.tweet.findMany({
       where: {
         author: {
@@ -76,7 +76,26 @@ export class PrismaTweetStore implements TweetStore {
       select: tweetSelect,
     });
 
-    return tweets.map(toTweetRecord);
+    const records = tweets.map(toTweetRecord);
+
+    if (authUserId) {
+      const tweetIds = records.map((t) => t.id);
+      const likes = await prisma.like.findMany({
+        where: {
+          userId: authUserId,
+          tweetId: { in: tweetIds },
+        },
+        select: { tweetId: true },
+      });
+      const likedIds = new Set(likes.map((l) => l.tweetId));
+
+      return records.map((record) => ({
+        ...record,
+        likedByMe: likedIds.has(record.id),
+      }));
+    }
+
+    return records;
   }
 
   async userExistsByUsername(username: string) {

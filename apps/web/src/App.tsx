@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
 
 import { ProtectedRoute, PublicOnlyRoute } from './modules/auth/AuthGate';
 import { useAuth } from './modules/auth/use-auth';
@@ -25,6 +25,8 @@ const navLinkClassName = (isActive: boolean) =>
 
 export const App = () => {
   const { currentUser, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const resolvedProfilePath = currentUser
     ? `/profile/${currentUser.username}`
     : '/profile/demo';
@@ -32,17 +34,14 @@ export const App = () => {
     ...item,
     to: item.to === '/profile/:username' ? resolvedProfilePath : item.to,
   }));
-  const mobileNavigationItems = [
-    ...desktopNavigationItems,
-    { to: '/login', label: 'Login', shortLabel: 'Login' },
-    { to: '/register', label: 'Register', shortLabel: 'Join' },
-  ];
 
   return (
     <div className="min-h-screen bg-app-canvas text-slate-950">
       <aside
         aria-label="Desktop sidebar"
-        className="fixed inset-y-0 left-0 z-30 hidden w-80 border-r border-slate-200 bg-white/95 px-6 py-8 backdrop-blur lg:flex lg:flex-col"
+        className={`fixed inset-y-0 left-0 z-30 w-80 border-r border-slate-200 bg-white/95 px-6 py-8 backdrop-blur ${
+          isAuthPage ? 'hidden' : 'hidden lg:flex lg:flex-col'
+        }`}
       >
         <NavLink to="/" className="inline-flex items-center">
           <p className="font-display text-3xl font-semibold text-slate-950">
@@ -96,7 +95,7 @@ export const App = () => {
         ) : null}
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-80">
+      <div className={`flex min-h-screen flex-1 flex-col${isAuthPage ? '' : ' lg:pl-80'}`}>
         <main className="flex-1 px-4 pb-28 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-5xl">
             <Routes>
@@ -168,12 +167,17 @@ export const App = () => {
           </div>
         </main>
 
-        <nav
-          aria-label="Mobile navigation"
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur lg:hidden"
-        >
-          <div className="mx-auto grid max-w-xl grid-cols-5 gap-2">
-            {mobileNavigationItems.map((item) => (
+        {!isAuthPage ? (
+          <nav
+            aria-label="Mobile navigation"
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur lg:hidden"
+          >
+          <div
+            className={`mx-auto grid max-w-xl gap-2 ${
+              isAuthenticated ? 'grid-cols-4' : 'grid-cols-5'
+            }`}
+          >
+            {desktopNavigationItems.map((item) => (
               <NavLink key={item.to} to={item.to}>
                 {({ isActive }) => (
                   <span
@@ -189,8 +193,51 @@ export const App = () => {
                 )}
               </NavLink>
             ))}
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void logout();
+                }}
+                className="flex min-h-12 items-center justify-center rounded-2xl bg-slate-100 px-2 text-center text-xs font-semibold text-slate-700 transition hover:bg-rose-100 hover:text-rose-700"
+              >
+                Logout
+              </button>
+            ) : (
+              <>
+                <NavLink to="/login">
+                  {({ isActive }) => (
+                    <span
+                      className={[
+                        'flex min-h-12 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold transition',
+                        isActive
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-slate-100 text-slate-700',
+                      ].join(' ')}
+                    >
+                      Login
+                    </span>
+                  )}
+                </NavLink>
+                <NavLink to="/register">
+                  {({ isActive }) => (
+                    <span
+                      className={[
+                        'flex min-h-12 items-center justify-center rounded-2xl px-2 text-center text-xs font-semibold transition',
+                        isActive
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-slate-100 text-slate-700',
+                      ].join(' ')}
+                    >
+                      Join
+                    </span>
+                  )}
+                </NavLink>
+              </>
+            )}
           </div>
         </nav>
+      ) : null}
       </div>
     </div>
   );

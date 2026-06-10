@@ -229,18 +229,21 @@ export const FollowListPage = ({
             </Link>
           </div>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-            <li>Starts with 20 users and grows up to the backend max of 50.</li>
-            <li>
-              Load more increases the requested limit instead of cursor paging.
-            </li>
-            <li>
-              Cards stay public, lightweight, and profile-focused in this slice.
-            </li>
+            <li>Browse who this user follows and who follows them.</li>
+            <li>Click &ldquo;Load more&rdquo; to see more people.</li>
+            <li>Follow new people to build your network.</li>
           </ul>
         </div>
       }
     >
       <div className="space-y-4">
+        <Link
+          to={`/profile/${resolvedUsername}`}
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 transition hover:bg-slate-200"
+        >
+          &larr; Back to profile
+        </Link>
+
         {followListQuery.isPending ? (
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">

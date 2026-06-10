@@ -24,7 +24,7 @@ export type CreateTweetInput = {
 export interface TweetStore {
   createTweet(input: CreateTweetInput): Promise<TweetRecord>;
   findTweetById(id: string): Promise<TweetRecord | null>;
-  findTweetsByUsername(username: string, limit: number): Promise<TweetRecord[]>;
+  findTweetsByUsername(username: string, limit: number, authUserId?: string): Promise<TweetRecord[]>;
   userExistsByUsername(username: string): Promise<boolean>;
   countTweetsByAuthorId(authorId: string): Promise<number>;
   deleteTweet(id: string): Promise<void>;

@@ -162,17 +162,17 @@ export const SearchPage = () => {
     <PageShell
       eyebrow="Search"
       title="Find people worth following."
-      description="This slice connects the user search page to the backend with a small, mobile-first discovery flow."
+      description="Find people to follow and grow your network."
       aside={
         <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
             Search tips
           </p>
           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-            <li>Search waits 300ms before querying the backend.</li>
-            <li>Results stay intentionally lightweight and public-only.</li>
+            <li>Search by name or username to find people.</li>
+            <li>Results update as you type.</li>
             <li>
-              Compact follow actions stay inline without breaking navigation.
+              Follow interesting people directly from search results.
             </li>
           </ul>
         </div>

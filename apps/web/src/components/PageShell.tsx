@@ -44,20 +44,20 @@ export const PageShell = ({
           <>
             <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Next
+                What's happening
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                This screen is wired for future API integration, but stays
-                intentionally local in this slice.
+                Follow other users to see their posts in your timeline. The more
+                people you follow, the more interesting your feed becomes.
               </p>
             </div>
             <div className="rounded-[2rem] border border-brand-100 bg-brand-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-700">
-                Design Goal
+                Tips
               </p>
               <p className="mt-3 text-sm leading-6 text-slate-700">
-                Keep the app feeling alive with believable structure before
-                connecting real data.
+                Find people with similar interests by browsing profiles and
+                searching for topics you care about.
               </p>
             </div>
           </>

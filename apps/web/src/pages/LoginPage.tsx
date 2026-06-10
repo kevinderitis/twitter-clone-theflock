@@ -78,58 +78,62 @@ export const LoginPage = () => {
   };
 
   return (
-    <PageShell
-      eyebrow="Account"
-      title="Sign in and take a look around."
-      description="This first frontend slice keeps auth local, but the form structure is ready for real mutations in a later commit."
-    >
-      <AuthCard
-        title="Welcome back"
-        subtitle="Use the seeded demo credentials later, or just validate the form states for now."
-        submitLabel="Sign in"
-        isSubmitting={loginMutation.isPending}
-        errorMessage={submissionError?.message ?? null}
-        errorDetails={submissionError?.details}
-        onSubmit={handleSubmit}
-        footer={
-          <>
-            No account yet?{' '}
-            <Link className="font-semibold text-brand-700" to="/register">
-              Create one
-            </Link>
-            .
-          </>
-        }
-      >
-        <Field
-          id="login-email"
-          label="Email"
-          type="email"
-          autoComplete="email"
-          value={values.email}
-          error={errors.email}
-          onChange={(value) =>
-            setValues((current) => ({
-              ...current,
-              email: value,
-            }))
+    <div className="mx-auto w-full max-w-lg py-8 sm:py-16">
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-700">
+        Account
+      </p>
+      <h2 className="mt-3 font-display text-3xl font-semibold text-slate-950 sm:text-4xl">
+        Sign in and take a look around.
+      </h2>
+      <div className="mt-6">
+        <AuthCard
+          title="Welcome back"
+          subtitle="Sign in to see what your flock is sharing."
+          submitLabel="Sign in"
+          isSubmitting={loginMutation.isPending}
+          errorMessage={submissionError?.message ?? null}
+          errorDetails={submissionError?.details}
+          onSubmit={handleSubmit}
+          footer={
+            <>
+              No account yet?{' '}
+              <Link className="font-semibold text-brand-700" to="/register">
+                Create one
+              </Link>
+              .
+            </>
           }
-        />
-        <Field
-          id="login-password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          value={values.password}
-          error={errors.password}
-          onChange={(value) =>
-            setValues((current) => ({
-              ...current,
-              password: value,
-            }))
-          }
-        />
-      </AuthCard>
-    </PageShell>
+        >
+          <Field
+            id="login-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={values.email}
+            error={errors.email}
+            onChange={(value) =>
+              setValues((current) => ({
+                ...current,
+                email: value,
+              }))
+            }
+          />
+          <Field
+            id="login-password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={values.password}
+            error={errors.password}
+            onChange={(value) =>
+              setValues((current) => ({
+                ...current,
+                password: value,
+              }))
+            }
+          />
+        </AuthCard>
+      </div>
+    </div>
   );
 };

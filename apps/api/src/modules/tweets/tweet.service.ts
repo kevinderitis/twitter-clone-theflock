@@ -92,7 +92,7 @@ export class TweetService {
     }
   }
 
-  async getTweetsByUsername(usernameParam: string, query: unknown) {
+  async getTweetsByUsername(usernameParam: string, query: unknown, authUserId?: string) {
     try {
       const username = usernameParamsSchema.parse({
         username: usernameParam,
@@ -101,6 +101,7 @@ export class TweetService {
       const tweets = await this.tweetStore.findTweetsByUsername(
         username,
         validatedQuery.limit,
+        authUserId,
       );
 
       const userExists = await this.tweetStore.userExistsByUsername(username);

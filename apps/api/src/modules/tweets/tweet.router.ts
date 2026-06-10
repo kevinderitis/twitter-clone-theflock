@@ -1,6 +1,11 @@
 import { Router } from 'express';
 
-import { getAuthenticatedUser, requireAuth } from '../auth/auth.middleware.js';
+import {
+  getAuthenticatedUser,
+  getOptionalAuthenticatedUser,
+  optionalAuth,
+  requireAuth,
+} from '../auth/auth.middleware.js';
 import { PrismaAuthUserStore } from '../auth/auth.repository.js';
 import type { AuthUserStore } from '../auth/auth.types.js';
 import { PrismaTweetStore } from './tweet.repository.js';
@@ -72,18 +77,27 @@ export const createTweetRouter = ({
     },
   );
 
-  router.get('/user/:username', async (request, response, next) => {
-    try {
-      const username = Array.isArray(request.params.username)
-        ? request.params.username[0]
-        : request.params.username;
+  router.get(
+    '/user/:username',
+    optionalAuth(resolvedAuthUserStore),
+    async (request, response, next) => {
+      try {
+        const username = Array.isArray(request.params.username)
+          ? request.params.username[0]
+          : request.params.username;
 
-      const result = await service.getTweetsByUsername(username, request.query);
-      response.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  });
+        const authUser = getOptionalAuthenticatedUser(request);
+        const result = await service.getTweetsByUsername(
+          username,
+          request.query,
+          authUser?.id,
+        );
+        response.status(200).json(result);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   return router;
 };
