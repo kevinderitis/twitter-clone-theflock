@@ -163,7 +163,8 @@ npm run verify
 2. Runs Prisma generate
 3. Applies committed migrations
 4. Seeds the database
-5. Starts the full stack in Docker Compose
+5. Builds and starts the full stack in Docker Compose
+6. Leaves the web container ready for Playwright-based verification
 
 After it finishes, the application is ready to use.
 
@@ -377,6 +378,8 @@ docker compose exec web npm run test:e2e:docker
 ```
 
 This is also the E2E path used by `npm run verify`.
+
+The web container build installs the Chromium browser used by Playwright, so a fresh reviewer setup does not need an extra browser-install step after `npm run setup`.
 
 ## Demo Credentials
 
