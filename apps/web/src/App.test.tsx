@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -262,8 +262,10 @@ describe('App authentication flow', () => {
 
     renderApp('/');
 
-    await screen.findByRole('button', { name: /log out/i });
-    await userEvent.click(screen.getByRole('button', { name: /log out/i }));
+    const logoutButtons = await screen.findAllByRole('button', {
+      name: /log out/i,
+    });
+    await userEvent.click(logoutButtons[0]);
 
     await screen.findByRole('heading', { name: /welcome back/i });
     expect(window.localStorage.getItem('theflock.auth.token')).toBeNull();
@@ -277,6 +279,26 @@ describe('App authentication flow', () => {
         screen.getByRole('heading', { name: /welcome back/i }),
       ).toBeInTheDocument();
     });
+  });
+
+  it('shows Login and Register in the mobile navigation when logged out', async () => {
+    renderApp('/login');
+
+    const mobileNav = screen.getByLabelText(/mobile navigation/i);
+
+    expect(
+      within(mobileNav).getByRole('link', { name: /^login$/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(mobileNav).getByRole('link', { name: /^join$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the desktop sidebar present in the layout', async () => {
+    renderApp('/login');
+
+    expect(screen.getByLabelText(/desktop sidebar/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^The Flock$/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -700,7 +722,10 @@ describe('Search page', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/search people/i)).toBeInTheDocument();
-    expect(screen.getByText(/search is ready/i)).toBeInTheDocument();
+    expect(screen.queryByText(/search is ready/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/start typing to search people by name or username/i),
+    ).not.toBeInTheDocument();
   });
 
   it('does not call the search API for an empty query', async () => {
@@ -713,7 +738,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await new Promise((resolve) => {
       window.setTimeout(resolve, 350);
     });
@@ -742,7 +767,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kev');
 
     expect(await screen.findByText(/^Kevin$/i)).toBeInTheDocument();
@@ -772,7 +797,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'nomatch');
 
     expect(await screen.findByText(/no results found/i)).toBeInTheDocument();
@@ -801,7 +826,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'demo');
 
     expect(
@@ -826,7 +851,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kevin');
 
     expect(await screen.findByRole('link', { name: /kevin/i })).toHaveAttribute(
@@ -858,7 +883,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'demo');
 
     expect(await screen.findByText(/^Demo User$/i)).toBeInTheDocument();
@@ -894,7 +919,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kev');
     await user.click(await screen.findByRole('button', { name: /^follow$/i }));
 
@@ -926,7 +951,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kev');
     await user.click(
       await screen.findByRole('button', { name: /^unfollow$/i }),
@@ -960,7 +985,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kev');
     await user.click(await screen.findByRole('button', { name: /^follow$/i }));
 
@@ -1009,7 +1034,7 @@ describe('Search page', () => {
 
     renderApp('/search');
 
-    await screen.findByText(/search is ready/i);
+    await screen.findByLabelText(/search people/i);
     await user.type(screen.getByLabelText(/search people/i), 'kev');
     await user.click(await screen.findByRole('button', { name: /^follow$/i }));
 
@@ -1017,6 +1042,35 @@ describe('Search page', () => {
       await screen.findByText(/could not update follow state right now/i),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^follow$/i })).toBeEnabled();
+  });
+
+  it('does not render the removed loading helper copy while searching', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(
+                createJsonResponse({
+                  users: [createSearchUser()],
+                }),
+              );
+            }, 50);
+          }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByLabelText(/search people/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+
+    expect(screen.queryByText(/loading results/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/looking up users in the flock/i),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -1095,6 +1149,35 @@ describe('Profile page', () => {
     expect(screen.getByText(/^12$/i)).toBeInTheDocument();
     expect(screen.getByText(/^7$/i)).toBeInTheDocument();
     expect(screen.getByText(/^2$/i)).toBeInTheDocument();
+  });
+
+  it('shows the current user info in the sidebar when logged in', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    await screen.findByText(/shipping the flock one commit at a time/i);
+
+    const sidebar = screen.getByLabelText(/desktop sidebar/i);
+
+    expect(within(sidebar).getByText(/^Demo User$/i)).toBeInTheDocument();
+    expect(within(sidebar).getByText(/^@demo$/i)).toBeInTheDocument();
   });
 
   it('does not show a follow button on your own profile', async () => {
@@ -1511,18 +1594,38 @@ describe('Follow list pages', () => {
 
   it('renders followers page users', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
-      .mockResolvedValueOnce(
-        createJsonResponse({
-          user: createProfileUser(),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.includes('/users/demo/followers?limit=20')) {
+        return createJsonResponse({
           followers: [createFollowListUser()],
-        }),
-      );
+        });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
+          user: createProfileUser(),
+        });
+      }
+
+      if (url.endsWith('/users/hopper')) {
+        return createJsonResponse({
+          user: createProfileUser({
+            id: 'user_follow_1',
+            username: 'hopper',
+            name: 'Grace Hopper',
+            isFollowing: false,
+          }),
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
 
     renderApp('/profile/demo/followers');
 
@@ -1531,29 +1634,59 @@ describe('Follow list pages', () => {
     expect(
       screen.getByRole('heading', { name: /followers · 12/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^follow$/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders following page users', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
-      .mockResolvedValueOnce(
-        createJsonResponse({
-          user: createProfileUser(),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.includes('/users/demo/following?limit=20')) {
+        return createJsonResponse({
           following: [
-            createFollowListUser({ username: 'kevin', name: 'Kevin' }),
+            createFollowListUser({
+              id: 'user_kevin',
+              username: 'kevin',
+              name: 'Kevin',
+            }),
           ],
-        }),
-      );
+        });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
+          user: createProfileUser(),
+        });
+      }
+
+      if (url.endsWith('/users/kevin')) {
+        return createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            isFollowing: true,
+          }),
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
 
     renderApp('/profile/demo/following');
 
     expect(await screen.findByText(/^Kevin$/i)).toBeInTheDocument();
     expect(screen.getByText(/@kevin/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders an empty state for followers', async () => {
@@ -1606,18 +1739,38 @@ describe('Follow list pages', () => {
 
   it('respects the initial limit parameter', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
-      .mockResolvedValueOnce(
-        createJsonResponse({
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
           user: createProfileUser(),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+        });
+      }
+
+      if (url.includes('/users/demo/followers?limit=20')) {
+        return createJsonResponse({
           followers: [createFollowListUser()],
-        }),
-      );
+        });
+      }
+
+      if (url.endsWith('/users/hopper')) {
+        return createJsonResponse({
+          user: createProfileUser({
+            id: 'user_follow_1',
+            username: 'hopper',
+            name: 'Grace Hopper',
+            isFollowing: false,
+          }),
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
 
     renderApp('/profile/demo/followers');
 
@@ -1631,17 +1784,23 @@ describe('Follow list pages', () => {
 
   it('loads additional users by increasing the limit', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
-      .mockResolvedValueOnce(
-        createJsonResponse({
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
           user: createProfileUser({
             followersCount: 40,
           }),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+        });
+      }
+
+      if (url.includes('/users/demo/followers?limit=20')) {
+        return createJsonResponse({
           followers: Array.from({ length: 20 }, (_, index) =>
             createFollowListUser({
               id: `user_follow_${index}`,
@@ -1649,10 +1808,11 @@ describe('Follow list pages', () => {
               name: `User ${index}`,
             }),
           ),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+        });
+      }
+
+      if (url.includes('/users/demo/followers?limit=40')) {
+        return createJsonResponse({
           followers: Array.from({ length: 40 }, (_, index) =>
             createFollowListUser({
               id: `user_follow_${index}`,
@@ -1660,8 +1820,23 @@ describe('Follow list pages', () => {
               name: `User ${index}`,
             }),
           ),
-        }),
-      );
+        });
+      }
+
+      if (/\/users\/user\d+$/.test(url)) {
+        const username = url.split('/').pop() ?? 'user0';
+        return createJsonResponse({
+          user: createProfileUser({
+            id: username,
+            username,
+            name: `User ${username.replace('user', '')}`,
+            isFollowing: false,
+          }),
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
 
     renderApp('/profile/demo/followers');
 
@@ -1678,28 +1853,44 @@ describe('Follow list pages', () => {
 
   it('profile counters navigate to the correct page', async () => {
     const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
-      .mockResolvedValueOnce(
-        createJsonResponse({
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
           user: createProfileUser(),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+        });
+      }
+
+      if (url.includes('/tweets/user/demo?limit=20')) {
+        return createJsonResponse({
           tweets: [createProfileTweet()],
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
-          user: createProfileUser(),
-        }),
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse({
+        });
+      }
+
+      if (url.includes('/users/demo/followers?limit=20')) {
+        return createJsonResponse({
           followers: [createFollowListUser()],
-        }),
-      );
+        });
+      }
+
+      if (url.endsWith('/users/hopper')) {
+        return createJsonResponse({
+          user: createProfileUser({
+            id: 'user_follow_1',
+            username: 'hopper',
+            name: 'Grace Hopper',
+            isFollowing: false,
+          }),
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
 
     renderApp('/profile/demo');
 
@@ -1711,5 +1902,70 @@ describe('Follow list pages', () => {
     expect(
       screen.getByRole('heading', { name: /followers · 12/i }),
     ).toBeInTheDocument();
+  });
+
+  it('follow actions on follower cards do not trigger profile navigation', async () => {
+    const fetchMock = vi.mocked(fetch);
+    let isFollowingHopper = false;
+
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.endsWith('/auth/me')) {
+        return createJsonResponse({ user: createDemoUser() });
+      }
+
+      if (url.endsWith('/users/demo')) {
+        return createJsonResponse({
+          user: createProfileUser(),
+        });
+      }
+
+      if (url.includes('/users/demo/followers?limit=20')) {
+        return createJsonResponse({
+          followers: [createFollowListUser()],
+        });
+      }
+
+      if (url.endsWith('/users/hopper')) {
+        return createJsonResponse({
+          user: createProfileUser({
+            id: 'user_follow_1',
+            username: 'hopper',
+            name: 'Grace Hopper',
+            isFollowing: isFollowingHopper,
+          }),
+        });
+      }
+
+      if (url.endsWith('/users/user_follow_1/follow')) {
+        isFollowingHopper = true;
+        return createJsonResponse({
+          follow: {
+            followerId: 'user_demo',
+            followingId: 'user_follow_1',
+            createdAt: '2026-01-12T10:00:00.000Z',
+          },
+        });
+      }
+
+      throw new Error(`Unhandled request: ${url}`);
+    });
+
+    renderApp('/profile/demo/followers');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    );
+
+    expect(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /followers · 12/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/shipping the flock one commit at a time/i),
+    ).not.toBeInTheDocument();
   });
 });

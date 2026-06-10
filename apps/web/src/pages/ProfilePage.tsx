@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { PageShell } from '../components/PageShell';
@@ -264,19 +264,8 @@ export const ProfilePage = () => {
   const showEmptyTweets =
     !isLoading && !isError && profileQuery.data && tweets.length === 0;
 
-  const description = useMemo(() => {
-    if (profileQuery.data?.user) {
-      return `Public profile, counts, and recent tweets for @${profileQuery.data.user.username}.`;
-    }
-
-    return `Public profile, counts, and recent tweets for @${resolvedUsername || 'user'}.`;
-  }, [profileQuery.data, resolvedUsername]);
-
   return (
     <PageShell
-      eyebrow="Profile"
-      title={`@${resolvedUsername || 'user'}`}
-      description={description}
       aside={
         <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
@@ -290,31 +279,9 @@ export const ProfilePage = () => {
         </div>
       }
     >
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-semibold text-slate-900">
-              Loading profile...
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Fetching public profile details and tweets.
-            </p>
-          </div>
-        ) : null}
-
-        {isError ? (
-          <div className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-5">
-            <p className="text-sm font-semibold text-rose-700">
-              We could not load this profile.
-            </p>
-            <p className="mt-2 text-sm text-rose-600">
-              Try refreshing the page or searching for another user.
-            </p>
-          </div>
-        ) : null}
-
-        {profileQuery.data?.user && !isLoading && !isError ? (
-          <>
+      <div>
+        {!isLoading && !isError && profileQuery.data?.user ? (
+          <div className="sticky top-0 z-10 space-y-4 rounded-[1.75rem] border-b border-slate-200 bg-white">
             <ProfileSummaryCard
               currentUserId={currentUser?.id}
               followError={followError}
@@ -341,27 +308,51 @@ export const ProfilePage = () => {
                 value={profileQuery.data.user.followersCount}
               />
             </section>
-          </>
-        ) : null}
-
-        {showEmptyTweets ? (
-          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm font-semibold text-slate-900">
-              No tweets yet.
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              This user has not posted anything yet.
-            </p>
           </div>
         ) : null}
 
-        {tweets.length > 0 && !isLoading && !isError ? (
-          <div className="space-y-4">
-            {tweets.map((tweet) => (
-              <ProfileTweetCard key={tweet.id} tweet={tweet} />
-            ))}
-          </div>
-        ) : null}
+        <div className={`space-y-4${!isLoading && !isError && profileQuery.data?.user ? ' mt-4' : ''}`}>
+          {isLoading ? (
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">
+                Loading profile...
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                Fetching public profile details and tweets.
+              </p>
+            </div>
+          ) : null}
+
+          {isError ? (
+            <div className="rounded-[1.75rem] border border-rose-200 bg-rose-50 p-5">
+              <p className="text-sm font-semibold text-rose-700">
+                We could not load this profile.
+              </p>
+              <p className="mt-2 text-sm text-rose-600">
+                Try refreshing the page or searching for another user.
+              </p>
+            </div>
+          ) : null}
+
+          {showEmptyTweets ? (
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-slate-900">
+                No tweets yet.
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                This user has not posted anything yet.
+              </p>
+            </div>
+          ) : null}
+
+          {tweets.length > 0 && !isLoading && !isError ? (
+            <div className="space-y-4">
+              {tweets.map((tweet) => (
+                <ProfileTweetCard key={tweet.id} tweet={tweet} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </PageShell>
   );

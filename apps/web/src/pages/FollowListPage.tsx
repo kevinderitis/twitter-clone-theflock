@@ -1,14 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { CompactFollowButton } from '../components/CompactFollowButton';
 import { PageShell } from '../components/PageShell';
 import { PublicUserCard } from '../components/PublicUserCard';
+import { ApiError } from '../lib/api';
 import { useAuth } from '../modules/auth/use-auth';
 import {
   getFollowersRequest,
   getFollowingRequest,
 } from '../modules/follows/follow-list-api';
+import {
+  followUserRequest,
+  unfollowUserRequest,
+} from '../modules/follows/follow-api';
 import { getProfileRequest } from '../modules/profile/profile-api';
 import type { ProfileResponse } from '../modules/profile/profile.types';
 import type {
@@ -19,6 +25,108 @@ import type {
 
 const INITIAL_LIMIT = 20;
 const MAX_LIMIT = 50;
+
+const FollowListAction = ({ user }: { user: FollowListUser }) => {
+  const { currentUser, token } = useAuth();
+  const queryClient = useQueryClient();
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const profileQuery = useQuery<ProfileResponse>({
+    queryKey: ['profile', user.username],
+    queryFn: () => getProfileRequest(token!, user.username),
+    enabled: Boolean(token) && currentUser?.id !== user.id,
+    retry: false,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async (isFollowing: boolean) => {
+      if (!token) {
+        throw new Error('Authentication is required.');
+      }
+
+      if (isFollowing) {
+        return unfollowUserRequest(token, user.id);
+      }
+
+      return followUserRequest(token, user.id);
+    },
+    onMutate: async (isFollowing) => {
+      setSubmissionError(null);
+      await queryClient.cancelQueries({
+        queryKey: ['profile', user.username],
+      });
+
+      const previousProfile = queryClient.getQueryData<ProfileResponse>([
+        'profile',
+        user.username,
+      ]);
+
+      queryClient.setQueryData<ProfileResponse>(
+        ['profile', user.username],
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            user: {
+              ...current.user,
+              isFollowing: !isFollowing,
+              followersCount: isFollowing
+                ? Math.max(0, current.user.followersCount - 1)
+                : current.user.followersCount + 1,
+            },
+          };
+        },
+      );
+
+      return {
+        previousProfile,
+      };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousProfile) {
+        queryClient.setQueryData(
+          ['profile', user.username],
+          context.previousProfile,
+        );
+      }
+
+      setSubmissionError(
+        error instanceof ApiError
+          ? error.message
+          : 'We could not update follow state right now.',
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['profile', user.username],
+      });
+    },
+  });
+
+  if (!currentUser || currentUser.id === user.id) {
+    return null;
+  }
+
+  const isFollowing = profileQuery.data?.user.isFollowing ?? false;
+
+  return (
+    <div className="space-y-2">
+      <CompactFollowButton
+        isFollowing={isFollowing}
+        isPending={followMutation.isPending}
+        onClick={() => {
+          followMutation.mutate(isFollowing);
+        }}
+      />
+      {submissionError ? (
+        <p className="max-w-28 text-right text-xs text-rose-600">
+          {submissionError}
+        </p>
+      ) : null}
+    </div>
+  );
+};
 
 export const FollowListPage = ({
   mode,
@@ -169,7 +277,11 @@ export const FollowListPage = ({
         {users.length > 0 ? (
           <div className="space-y-3">
             {users.map((user) => (
-              <PublicUserCard key={user.id} user={user as FollowListUser} />
+              <PublicUserCard
+                key={user.id}
+                user={user as FollowListUser}
+                action={<FollowListAction user={user} />}
+              />
             ))}
           </div>
         ) : null}

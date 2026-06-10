@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { CompactFollowButton } from '../components/CompactFollowButton';
 import { PublicUserCard } from '../components/PublicUserCard';
 import { ApiError } from '../lib/api';
 import {
@@ -50,7 +51,7 @@ export const SearchPage = () => {
     users.length === 0;
   const summaryText = useMemo(() => {
     if (showIdleState) {
-      return 'Start typing to search people by name or username.';
+      return '';
     }
 
     if (searchQuery.isPending) {
@@ -193,18 +194,17 @@ export const SearchPage = () => {
           />
         </label>
 
-        <div className="rounded-[1.5rem] border border-slate-200/80 bg-slate-50 px-4 py-3">
-          <p className="text-sm text-slate-600">{summaryText}</p>
-        </div>
-
-        {searchQuery.isPending ? (
-          <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-semibold text-slate-900">
-              Loading results...
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Looking up users in the flock.
-            </p>
+        {debouncedQuery.length > 0 &&
+        !showEmptyState &&
+        !searchQuery.isError ? (
+          <div className="flex min-h-6 items-center px-1">
+            {searchQuery.isPending ? (
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Searching...
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600">{summaryText}</p>
+            )}
           </div>
         ) : null}
 
@@ -215,17 +215,6 @@ export const SearchPage = () => {
             </p>
             <p className="mt-2 text-sm text-rose-600">
               Please try a different query or try again in a moment.
-            </p>
-          </div>
-        ) : null}
-
-        {showIdleState ? (
-          <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/70 p-6 text-center">
-            <p className="text-sm font-semibold text-slate-900">
-              Search is ready.
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Try searching for demo, kevin, or another seeded username.
             </p>
           </div>
         ) : null}
@@ -249,35 +238,19 @@ export const SearchPage = () => {
                   user={user as SearchUser}
                   action={
                     currentUser && currentUser.id !== user.id ? (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
+                      <CompactFollowButton
+                        isFollowing={user.isFollowing}
+                        isPending={
+                          followMutation.isPending &&
+                          followMutation.variables?.userId === user.id
+                        }
+                        onClick={() => {
                           followMutation.mutate({
                             isFollowing: user.isFollowing,
                             userId: user.id,
                           });
                         }}
-                        disabled={
-                          followMutation.isPending &&
-                          followMutation.variables?.userId === user.id
-                        }
-                        className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
-                          user.isFollowing
-                            ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                            : 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600'
-                        } disabled:cursor-not-allowed disabled:opacity-70`}
-                      >
-                        {followMutation.isPending &&
-                        followMutation.variables?.userId === user.id
-                          ? user.isFollowing
-                            ? 'Unfollowing...'
-                            : 'Following...'
-                          : user.isFollowing
-                            ? 'Unfollow'
-                            : 'Follow'}
-                      </button>
+                      />
                     ) : null
                   }
                 />

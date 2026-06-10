@@ -4,6 +4,7 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { ApiError } from '../lib/api';
 import {
@@ -132,7 +133,10 @@ export const TweetCard = ({ tweet }: { tweet: TimelineTweet }) => {
   return (
     <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
+        <Link
+          to={`/profile/${tweet.author.username}`}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700 hover:opacity-80"
+        >
           {tweet.author.avatarUrl ? (
             <img
               src={tweet.author.avatarUrl}
@@ -142,13 +146,16 @@ export const TweetCard = ({ tweet }: { tweet: TimelineTweet }) => {
           ) : (
             getInitials(tweet.author.name)
           )}
-        </div>
+        </Link>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-sm font-semibold text-slate-950">
+            <Link
+              to={`/profile/${tweet.author.username}`}
+              className="text-sm font-semibold text-slate-950 hover:text-brand-600 hover:underline"
+            >
               {tweet.author.name}
-            </p>
+            </Link>
             <p className="text-sm text-slate-500">@{tweet.author.username}</p>
             <span className="text-xs text-slate-400">
               {formatTweetDate(tweet.createdAt)}

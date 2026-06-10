@@ -66,11 +66,11 @@ export const TweetComposer = () => {
 
   return (
     <form
-      className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm"
+      className="rounded-[1.75rem] border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur"
       onSubmit={handleSubmit}
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.25rem] bg-brand-100 text-sm font-semibold text-brand-700">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.15rem] bg-brand-100 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
           Post
         </div>
 
@@ -81,7 +81,7 @@ export const TweetComposer = () => {
               value={content}
               onChange={(event) => setContent(event.target.value)}
               maxLength={400}
-              rows={4}
+              rows={3}
               placeholder="What's happening?"
               className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
             />
