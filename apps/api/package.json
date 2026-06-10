@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "db:migrate": "npm run prisma:migrate:deploy",
     "db:setup": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run db:seed",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src tests --ext .ts",
