@@ -26,6 +26,8 @@ For evaluators:
    - `Password123!`
 7. Run:
    - `npm run verify`
+8. Optional E2E:
+   - `npm run test:e2e`
 
 To start the application:
 
@@ -176,9 +178,10 @@ After it finishes, the application is ready to use.
 2. Backend coverage
 3. Frontend tests
 4. Frontend build
-5. E2E tests from inside Docker
 
 `npm run verify` assumes the stack is already running, typically after `npm run setup`.
+
+E2E is intentionally kept as a separate command so reviewers can run functional end-to-end validation independently from the faster verification pass.
 
 ## Environment Variables
 
@@ -214,6 +217,8 @@ Environment variables are defined in the root `.env` file.
   - Port exposed by the Vite dev server
 - `VITE_API_URL`
   - Public API base URL consumed by the frontend
+- `VITE_API_URL_DOCKER`
+  - Internal API base URL used when Playwright runs inside the `web` container
 
 ### Default Example Values
 
@@ -356,8 +361,18 @@ Playwright covers the critical authenticated flows:
 
 ### Run E2E from the Host
 
+Preferred reviewer path:
+
 ```bash
 npm run test:e2e
+```
+
+This command runs Playwright inside the `web` container, so reviewers do not need a separate local Playwright installation after `npm run setup`.
+
+Optional host-only path:
+
+```bash
+npm run test:e2e:host
 ```
 
 Optional UI mode:
@@ -366,7 +381,7 @@ Optional UI mode:
 npm run test:e2e:ui
 ```
 
-This host path assumes the app is already running at:
+This host-only path assumes the app is already running at:
 
 - `http://localhost:5173`
 - `http://localhost:3000`
@@ -377,9 +392,10 @@ This host path assumes the app is already running at:
 docker compose exec web npm run test:e2e:docker
 ```
 
-This is also the E2E path used by `npm run verify`.
+This is the same path used by `npm run test:e2e`.
 
 The web container build installs the Chromium browser used by Playwright, so a fresh reviewer setup does not need an extra browser-install step after `npm run setup`.
+The Docker E2E path starts an isolated temporary Vite server inside the `web` container with the internal Docker API hostname, so end-to-end tests do not depend on the reviewer-facing web session configuration.
 
 ## Demo Credentials
 

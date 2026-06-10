@@ -26,6 +26,16 @@ type RequestOptions = {
 
 const getApiBaseUrl = () => {
   const baseUrl = import.meta.env.VITE_API_URL;
+  const dockerBaseUrl = import.meta.env.VITE_API_URL_DOCKER;
+
+  const isDockerPlaywrightBrowser =
+    typeof window !== 'undefined' &&
+    window.navigator.webdriver &&
+    Boolean(dockerBaseUrl);
+
+  if (isDockerPlaywrightBrowser) {
+    return dockerBaseUrl;
+  }
 
   if (!baseUrl) {
     throw new Error('VITE_API_URL is not configured.');

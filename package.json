@@ -20,10 +20,11 @@
     "setup:seed": "docker compose exec api npm run db:seed --workspace api",
     "test": "npm run test --workspaces",
     "test:coverage": "npm run test:coverage --workspace api && npm run test:coverage --workspace web && node scripts/coverage-summary.mjs",
-    "test:e2e": "playwright test",
-    "test:e2e:docker": "PLAYWRIGHT_BASE_URL=http://web:5173 PLAYWRIGHT_API_URL=http://api:3000 playwright test",
+    "test:e2e": "docker compose exec web npm run test:e2e:docker",
+    "test:e2e:docker": "sh -c 'VITE_API_URL=http://api:3000 npm run dev --workspace web -- --host 0.0.0.0 --port 4173 >/tmp/theflock-e2e-web.log 2>&1 & SERVER_PID=$!; trap \"kill $SERVER_PID\" EXIT; PLAYWRIGHT_BASE_URL=http://localhost:4173 PLAYWRIGHT_API_URL=http://api:3000 playwright test'",
+    "test:e2e:host": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify": "docker compose exec api npm test --workspace api && docker compose exec api npm run test:coverage --workspace api && docker compose exec web npm test --workspace web && docker compose exec web npm run build --workspace web && docker compose exec web npm run test:e2e:docker"
+    "verify": "docker compose exec api npm test --workspace api && docker compose exec api npm run test:coverage --workspace api && docker compose exec web npm test --workspace web && docker compose exec web npm run build --workspace web"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",

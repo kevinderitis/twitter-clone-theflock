@@ -61,9 +61,22 @@ export const createApp = ({
     configuredWebOrigin && configuredWebOrigin.length > 0
       ? configuredWebOrigin
       : 'http://localhost:5173';
+  const allowedOrigins = new Set([
+    webOrigin,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:4173',
+    'http://127.0.0.1:4173',
+  ]);
 
   app.use((request, response, next) => {
-    response.header('Access-Control-Allow-Origin', webOrigin);
+    const requestOrigin = request.headers.origin?.trim();
+    const responseOrigin =
+      requestOrigin && allowedOrigins.has(requestOrigin)
+        ? requestOrigin
+        : webOrigin;
+
+    response.header('Access-Control-Allow-Origin', responseOrigin);
     response.header('Vary', 'Origin');
     response.header(
       'Access-Control-Allow-Headers',
