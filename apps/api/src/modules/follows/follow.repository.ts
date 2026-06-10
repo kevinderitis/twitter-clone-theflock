@@ -74,7 +74,7 @@ export class PrismaFollowStore implements FollowStore {
   async listFollowers(userId: string, query: FollowListQuery) {
     const users = await prisma.user.findMany({
       where: {
-        following: {
+        followers: {
           some: {
             followingId: userId,
           },
@@ -93,7 +93,7 @@ export class PrismaFollowStore implements FollowStore {
   async listFollowing(userId: string, query: FollowListQuery) {
     const users = await prisma.user.findMany({
       where: {
-        followers: {
+        following: {
           some: {
             followerId: userId,
           },
