@@ -12,6 +12,12 @@ import type {
   CreateUserInput,
 } from '../src/modules/auth/auth.types.js';
 import type {
+  FollowListQuery,
+  FollowProfile,
+  FollowRecord,
+  FollowStore,
+} from '../src/modules/follows/follow.types.js';
+import type {
   UserSearchQuery,
   UserSearchResult,
   UserSearchStore,
@@ -81,24 +87,108 @@ class InMemoryUserSearchStore implements UserSearchStore {
         name: user.name,
         bio: user.bio,
         avatarUrl: user.avatarUrl,
+        isFollowing: false,
       }));
+  }
+}
+
+class InMemoryFollowStore implements FollowStore {
+  private follows = new Map<string, FollowRecord>();
+
+  constructor(private readonly userStore: InMemoryAuthUserStore) {}
+
+  private key(followerId: string, followingId: string) {
+    return `${followerId}:${followingId}`;
+  }
+
+  async createFollow(followerId: string, followingId: string) {
+    const follow: FollowRecord = {
+      followerId,
+      followingId,
+      createdAt: new Date(),
+    };
+
+    this.follows.set(this.key(followerId, followingId), follow);
+
+    return follow;
+  }
+
+  async findFollow(followerId: string, followingId: string) {
+    return this.follows.get(this.key(followerId, followingId)) ?? null;
+  }
+
+  async deleteFollow(followerId: string, followingId: string) {
+    this.follows.delete(this.key(followerId, followingId));
+  }
+
+  async listFollowers(userId: string, query: FollowListQuery) {
+    const followers = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followingId === userId)
+        .map((follow) => this.userStore.findById(follow.followerId)),
+    );
+
+    return followers
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
+  async listFollowing(userId: string, query: FollowListQuery) {
+    const following = await Promise.all(
+      [...this.follows.values()]
+        .filter((follow) => follow.followerId === userId)
+        .map((follow) => this.userStore.findById(follow.followingId)),
+    );
+
+    return following
+      .filter((user): user is AuthUserRecord => user !== null)
+      .map((user) => this.toFollowProfile(user))
+      .sort((a, b) => a.username.localeCompare(b.username))
+      .slice(0, query.limit);
+  }
+
+  async countFollowers(userId: string) {
+    return [...this.follows.values()].filter(
+      (follow) => follow.followingId === userId,
+    ).length;
+  }
+
+  async countFollowing(userId: string) {
+    return [...this.follows.values()].filter(
+      (follow) => follow.followerId === userId,
+    ).length;
+  }
+
+  private toFollowProfile(user: AuthUserRecord): FollowProfile {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+    };
   }
 }
 
 describe('User search routes', () => {
   let userStore: InMemoryAuthUserStore;
   let userSearchStore: InMemoryUserSearchStore;
+  let followStore: InMemoryFollowStore;
 
   beforeEach(() => {
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.JWT_EXPIRES_IN = '1h';
     userStore = new InMemoryAuthUserStore();
     userSearchStore = new InMemoryUserSearchStore(userStore);
+    followStore = new InMemoryFollowStore(userStore);
   });
 
   const createTestApp = () =>
     createApp({
       authUserStore: userStore,
+      followStore,
       userSearchStore,
     });
 
@@ -154,6 +244,7 @@ describe('User search routes', () => {
           name: 'Grace Hopper',
           bio: 'Compiler pioneer',
           avatarUrl: null,
+          isFollowing: false,
         },
       ],
     });
@@ -229,6 +320,24 @@ describe('User search routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.users[0].email).toBeUndefined();
     expect(response.body.users[0].passwordHash).toBeUndefined();
+  });
+
+  it('includes isFollowing for the authenticated viewer', async () => {
+    const viewer = await createAuthenticatedUser();
+    const targetUser = await createAuthenticatedUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+    });
+    await followStore.createFollow(viewer.id, targetUser.id);
+    const token = signAuthToken(viewer.id);
+
+    const response = await request(createTestApp())
+      .get('/users/search?q=grace')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.users[0].isFollowing).toBe(true);
   });
 
   it('respects limit', async () => {

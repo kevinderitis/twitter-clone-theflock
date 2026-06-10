@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { PublicUserCard } from '../components/PublicUserCard';
+import { ApiError } from '../lib/api';
+import {
+  followUserRequest,
+  unfollowUserRequest,
+} from '../modules/follows/follow-api';
 import { PageShell } from '../components/PageShell';
 import { useAuth } from '../modules/auth/use-auth';
 import { searchUsersRequest } from '../modules/search/search-api';
@@ -10,9 +15,13 @@ import type { SearchUser } from '../modules/search/search.types';
 const SEARCH_DEBOUNCE_MS = 300;
 
 export const SearchPage = () => {
-  const { token } = useAuth();
+  const { currentUser, token } = useAuth();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [followErrorByUserId, setFollowErrorByUserId] = useState<
+    Record<string, string | null>
+  >({});
   const trimmedQuery = query.trim();
 
   useEffect(() => {
@@ -66,6 +75,88 @@ export const SearchPage = () => {
     users.length,
   ]);
 
+  const followMutation = useMutation({
+    mutationFn: async ({
+      isFollowing,
+      userId,
+    }: {
+      isFollowing: boolean;
+      userId: string;
+    }) => {
+      if (!token) {
+        throw new Error('Authentication is required.');
+      }
+
+      if (isFollowing) {
+        return unfollowUserRequest(token, userId);
+      }
+
+      return followUserRequest(token, userId);
+    },
+    onMutate: async ({ isFollowing, userId }) => {
+      setFollowErrorByUserId((current) => ({
+        ...current,
+        [userId]: null,
+      }));
+
+      await queryClient.cancelQueries({
+        queryKey: ['user-search', debouncedQuery],
+      });
+
+      const previousResults = queryClient.getQueryData<{ users: SearchUser[] }>(
+        ['user-search', debouncedQuery],
+      );
+
+      queryClient.setQueryData<{ users: SearchUser[] }>(
+        ['user-search', debouncedQuery],
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            users: current.users.map((user) =>
+              user.id === userId
+                ? {
+                    ...user,
+                    isFollowing: !isFollowing,
+                  }
+                : user,
+            ),
+          };
+        },
+      );
+
+      return {
+        previousResults,
+        userId,
+      };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousResults) {
+        queryClient.setQueryData(
+          ['user-search', debouncedQuery],
+          context.previousResults,
+        );
+      }
+
+      if (context?.userId) {
+        setFollowErrorByUserId((current) => ({
+          ...current,
+          [context.userId]:
+            error instanceof ApiError
+              ? error.message
+              : 'We could not update follow state right now.',
+        }));
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['user-search', debouncedQuery],
+      });
+    },
+  });
+
   return (
     <PageShell
       eyebrow="Search"
@@ -79,7 +170,9 @@ export const SearchPage = () => {
           <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
             <li>Search waits 300ms before querying the backend.</li>
             <li>Results stay intentionally lightweight and public-only.</li>
-            <li>Profile details and follow actions stay out of this slice.</li>
+            <li>
+              Compact follow actions stay inline without breaking navigation.
+            </li>
           </ul>
         </div>
       }
@@ -151,7 +244,49 @@ export const SearchPage = () => {
         {users.length > 0 ? (
           <div className="space-y-3">
             {users.map((user) => (
-              <PublicUserCard key={user.id} user={user as SearchUser} />
+              <div key={user.id} className="space-y-2">
+                <PublicUserCard
+                  user={user as SearchUser}
+                  action={
+                    currentUser && currentUser.id !== user.id ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          followMutation.mutate({
+                            isFollowing: user.isFollowing,
+                            userId: user.id,
+                          });
+                        }}
+                        disabled={
+                          followMutation.isPending &&
+                          followMutation.variables?.userId === user.id
+                        }
+                        className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+                          user.isFollowing
+                            ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                            : 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600'
+                        } disabled:cursor-not-allowed disabled:opacity-70`}
+                      >
+                        {followMutation.isPending &&
+                        followMutation.variables?.userId === user.id
+                          ? user.isFollowing
+                            ? 'Unfollowing...'
+                            : 'Following...'
+                          : user.isFollowing
+                            ? 'Unfollow'
+                            : 'Follow'}
+                      </button>
+                    ) : null
+                  }
+                />
+                {followErrorByUserId[user.id] ? (
+                  <p className="px-2 text-sm text-rose-600">
+                    {followErrorByUserId[user.id]}
+                  </p>
+                ) : null}
+              </div>
             ))}
           </div>
         ) : null}

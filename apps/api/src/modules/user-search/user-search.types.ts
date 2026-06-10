@@ -4,6 +4,7 @@ export type UserSearchResult = {
   name: string;
   bio: string | null;
   avatarUrl: string | null;
+  isFollowing: boolean;
 };
 
 export type UserSearchQuery = {

@@ -4,6 +4,7 @@ export type SearchUser = {
   name: string;
   bio: string | null;
   avatarUrl: string | null;
+  isFollowing: boolean;
 };
 
 export type SearchUsersResponse = {

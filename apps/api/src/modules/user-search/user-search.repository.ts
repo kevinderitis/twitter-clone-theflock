@@ -19,7 +19,10 @@ type PrismaSearchUser = Prisma.UserGetPayload<{
   select: typeof userSearchSelect;
 }>;
 
-const toUserSearchResult = (user: PrismaSearchUser): UserSearchResult => user;
+const toUserSearchResult = (user: PrismaSearchUser): UserSearchResult => ({
+  ...user,
+  isFollowing: false,
+});
 
 export class PrismaUserSearchStore implements UserSearchStore {
   async searchUsers(query: UserSearchQuery) {

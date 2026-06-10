@@ -49,6 +49,7 @@ const createSearchUser = (overrides?: Record<string, unknown>) => ({
   name: 'Kevin',
   bio: 'Building The Flock one slice at a time.',
   avatarUrl: null,
+  isFollowing: false,
   ...overrides,
 });
 
@@ -749,6 +750,9 @@ describe('Search page', () => {
     expect(
       screen.getByText(/building the flock one slice at a time/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^follow$/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders an empty results state', async () => {
@@ -829,6 +833,190 @@ describe('Search page', () => {
       'href',
       '/profile/kevin',
     );
+  });
+
+  it('does not show a follow button for the current user', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [
+            createSearchUser({
+              id: 'user_demo',
+              username: 'demo',
+              name: 'Demo User',
+            }),
+          ],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'demo');
+
+    expect(await screen.findByText(/^Demo User$/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /follow|unfollow/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('follows a user from search results', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          follow: {
+            followerId: 'user_demo',
+            followingId: 'user_search_1',
+            createdAt: '2026-01-12T10:00:00.000Z',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser({ isFollowing: true })],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+    await user.click(await screen.findByRole('button', { name: /^follow$/i }));
+
+    expect(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('unfollows a user from search results', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser({ isFollowing: true })],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          success: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser({ isFollowing: false })],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+    await user.click(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    );
+
+    expect(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('disables the follow button while the mutation is pending', async () => {
+    const user = userEvent.setup();
+    let resolveFollow: ((value: Response) => void) | undefined;
+    const pendingFollow = new Promise<Response>((resolve) => {
+      resolveFollow = resolve;
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      )
+      .mockImplementationOnce(() => pendingFollow)
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser({ isFollowing: true })],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+    await user.click(await screen.findByRole('button', { name: /^follow$/i }));
+
+    expect(
+      await screen.findByRole('button', { name: /following\.\.\./i }),
+    ).toBeDisabled();
+
+    resolveFollow?.(
+      createJsonResponse({
+        follow: {
+          followerId: 'user_demo',
+          followingId: 'user_search_1',
+          createdAt: '2026-01-12T10:00:00.000Z',
+        },
+      }),
+    );
+    await screen.findByRole('button', { name: /^unfollow$/i });
+  });
+
+  it('shows a friendly error when follow mutation fails', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ user: createDemoUser() }))
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Could not update follow state right now.',
+            },
+          },
+          500,
+        ),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+    await user.click(await screen.findByRole('button', { name: /^follow$/i }));
+
+    expect(
+      await screen.findByText(/could not update follow state right now/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^follow$/i })).toBeEnabled();
   });
 });
 

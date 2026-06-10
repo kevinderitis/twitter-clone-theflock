@@ -5,6 +5,7 @@ import { createAuthRouter } from './modules/auth/auth.router.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import type { AuthUserStore } from './modules/auth/auth.types.js';
 import { createFollowRouter } from './modules/follows/follow.router.js';
+import { PrismaFollowStore } from './modules/follows/follow.repository.js';
 import { FollowService } from './modules/follows/follow.service.js';
 import type { FollowStore } from './modules/follows/follow.types.js';
 import { createLikeRouter } from './modules/likes/like.router.js';
@@ -54,6 +55,7 @@ export const createApp = ({
   userSearchStore,
 }: AppDependencies = {}) => {
   const app = express();
+  const resolvedFollowStore = followStore ?? new PrismaFollowStore();
   const configuredWebOrigin = process.env.WEB_ORIGIN?.trim();
   const webOrigin =
     configuredWebOrigin && configuredWebOrigin.length > 0
@@ -96,13 +98,14 @@ export const createApp = ({
     createFollowRouter({
       authUserStore,
       followService,
-      followStore,
+      followStore: resolvedFollowStore,
     }),
   );
   app.use(
     '/users',
     createUserSearchRouter({
       authUserStore,
+      followStore: resolvedFollowStore,
       userSearchService,
       userSearchStore,
     }),
@@ -111,7 +114,7 @@ export const createApp = ({
     '/users',
     createProfileRouter({
       authUserStore,
-      followStore,
+      followStore: resolvedFollowStore,
       profileService,
       tweetStore,
     }),
