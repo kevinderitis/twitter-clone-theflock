@@ -41,10 +41,12 @@ const getInitials = (name: string) =>
 const ProfileStat = ({
   href,
   label,
+  testId,
   value,
 }: {
   href?: string;
   label: string;
+  testId?: string;
   value: number;
 }) => {
   const className =
@@ -54,12 +56,16 @@ const ProfileStat = ({
     return (
       <Link
         to={href}
+        data-testid={testId}
         className={`${className} block hover:border-brand-200 hover:bg-brand-50/40`}
       >
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
           {label}
         </p>
-        <p className="mt-2 text-xl font-semibold text-slate-950 sm:mt-3 sm:text-2xl">
+        <p
+          data-testid={testId ? `${testId}-value` : undefined}
+          className="mt-2 text-xl font-semibold text-slate-950 sm:mt-3 sm:text-2xl"
+        >
           {value}
         </p>
       </Link>
@@ -420,16 +426,19 @@ export const ProfilePage = () => {
             <section className="grid grid-cols-3 gap-2 sm:gap-3">
               <ProfileStat
                 label="Tweets"
+                testId="profile-tweets-stat"
                 value={profileQuery.data.user.tweetsCount}
               />
               <ProfileStat
                 label="Following"
                 href={`/profile/${profileQuery.data.user.username}/following`}
+                testId="profile-following-link"
                 value={profileQuery.data.user.followingCount}
               />
               <ProfileStat
                 label="Followers"
                 href={`/profile/${profileQuery.data.user.username}/followers`}
+                testId="profile-followers-link"
                 value={profileQuery.data.user.followersCount}
               />
             </section>

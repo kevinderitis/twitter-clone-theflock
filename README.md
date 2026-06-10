@@ -29,6 +29,7 @@ Twitter/X clone technical challenge scaffold.
 - `npm run lint`
 - `npm run format`
 - `npm run test`
+- `npm run test:coverage`
 - `npm run build`
 - `npm run db:setup`
 - `npm run test:e2e`
@@ -139,6 +140,12 @@ Playwright covers the most stable authenticated user flows in the first E2E slic
 - profile loading
 - follow/unfollow from profile
 
+The second E2E slice adds:
+
+- like/unlike on timeline tweets
+- followers page navigation
+- following page navigation
+
 ### Prerequisites
 
 1. Install dependencies:
@@ -188,6 +195,26 @@ You can override them if needed:
 PLAYWRIGHT_BASE_URL=http://localhost:5173
 PLAYWRIGHT_API_URL=http://localhost:3000
 ```
+
+## Coverage
+
+Generate coverage for backend, frontend, and an overall combined summary:
+
+```bash
+npm run test:coverage
+```
+
+Run per-app coverage if you only need one side:
+
+```bash
+npm run test:coverage --workspace api
+npm run test:coverage --workspace web
+```
+
+Coverage reports are written to:
+
+- `apps/api/coverage`
+- `apps/web/coverage`
 
 ## Next Steps
 

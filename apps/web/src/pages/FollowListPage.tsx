@@ -115,6 +115,7 @@ const FollowListAction = ({ user }: { user: FollowListUser }) => {
       <CompactFollowButton
         isFollowing={isFollowing}
         isPending={followMutation.isPending}
+        testId={`follow-list-toggle-${user.username}`}
         onClick={() => {
           followMutation.mutate(isFollowing);
         }}
@@ -236,7 +237,7 @@ export const FollowListPage = ({
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid={`follow-list-page-${mode}`}>
         <Link
           to={`/profile/${resolvedUsername}`}
           className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 transition hover:bg-slate-200"
@@ -278,11 +279,15 @@ export const FollowListPage = ({
         ) : null}
 
         {users.length > 0 ? (
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            data-testid={`follow-list-results-${mode}`}
+          >
             {users.map((user) => (
               <PublicUserCard
                 key={user.id}
                 user={user as FollowListUser}
+                testId={`follow-list-user-${user.username}`}
                 action={<FollowListAction user={user} />}
               />
             ))}
@@ -292,6 +297,7 @@ export const FollowListPage = ({
         {canLoadMore ? (
           <button
             type="button"
+            data-testid={`follow-list-load-more-${mode}`}
             onClick={() => {
               setLimit((current) => Math.min(current + 20, MAX_LIMIT));
             }}
