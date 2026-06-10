@@ -2,7 +2,10 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app.js';
-import { hashPassword } from '../src/modules/auth/auth.security.js';
+import {
+  hashPassword,
+  signAuthToken,
+} from '../src/modules/auth/auth.security.js';
 import type {
   AuthUserRecord,
   AuthUserStore,
@@ -252,7 +255,29 @@ describe('Profile routes', () => {
         followersCount: 2,
         followingCount: 1,
         tweetsCount: 2,
+        isFollowing: false,
       },
+    });
+  });
+
+  it('returns isFollowing when the viewer already follows the user', async () => {
+    const targetUser = await createUser();
+    const viewer = await createUser({
+      email: 'grace@example.com',
+      username: 'gracehopper',
+      name: 'Grace Hopper',
+    });
+    await followStore.createFollow(viewer.id, targetUser.id);
+    const token = signAuthToken(viewer.id);
+
+    const response = await request(createTestApp())
+      .get(`/users/${targetUser.username}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.user).toMatchObject({
+      id: targetUser.id,
+      isFollowing: true,
     });
   });
 

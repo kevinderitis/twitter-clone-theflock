@@ -7,6 +7,7 @@ export type ProfileUser = {
   followersCount: number;
   followingCount: number;
   tweetsCount: number;
+  isFollowing: boolean;
 };
 
 export type ProfileResponse = {

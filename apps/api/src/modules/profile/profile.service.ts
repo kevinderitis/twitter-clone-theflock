@@ -1,7 +1,7 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../../lib/errors.js';
-import type { AuthUserStore } from '../auth/auth.types.js';
+import type { AuthUserRecord, AuthUserStore } from '../auth/auth.types.js';
 import type { FollowStore } from '../follows/follow.types.js';
 import { followUsernameParamsSchema } from '../follows/follow.schemas.js';
 import type { TweetStore } from '../tweets/tweet.types.js';
@@ -17,7 +17,10 @@ export class ProfileService {
     private readonly tweetStore: TweetStore,
   ) {}
 
-  async getProfile(usernameParam: string): Promise<{ user: UserProfile }> {
+  async getProfile(
+    usernameParam: string,
+    authUser?: AuthUserRecord | null,
+  ): Promise<{ user: UserProfile }> {
     const username = this.validateUsername(usernameParam);
     const user = await this.authUserStore.findByUsername(username);
 
@@ -25,11 +28,15 @@ export class ProfileService {
       throw new AppError(404, 'USER_NOT_FOUND', 'User not found.');
     }
 
-    const [followersCount, followingCount, tweetsCount] = await Promise.all([
-      this.followStore.countFollowers(user.id),
-      this.followStore.countFollowing(user.id),
-      this.tweetStore.countTweetsByAuthorId(user.id),
-    ]);
+    const [followersCount, followingCount, tweetsCount, isFollowing] =
+      await Promise.all([
+        this.followStore.countFollowers(user.id),
+        this.followStore.countFollowing(user.id),
+        this.tweetStore.countTweetsByAuthorId(user.id),
+        authUser && authUser.id !== user.id
+          ? this.followStore.findFollow(authUser.id, user.id).then(Boolean)
+          : Promise.resolve(false),
+      ]);
 
     return {
       user: {
@@ -41,6 +48,7 @@ export class ProfileService {
         followersCount,
         followingCount,
         tweetsCount,
+        isFollowing,
       },
     };
   }

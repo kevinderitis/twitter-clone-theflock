@@ -1,5 +1,9 @@
 import { Router } from 'express';
 
+import {
+  getOptionalAuthenticatedUser,
+  optionalAuth,
+} from '../auth/auth.middleware.js';
 import { PrismaAuthUserStore } from '../auth/auth.repository.js';
 import type { AuthUserStore } from '../auth/auth.types.js';
 import { PrismaFollowStore } from '../follows/follow.repository.js';
@@ -33,18 +37,25 @@ export const createProfileRouter = ({
       resolvedTweetStore,
     );
 
-  router.get('/:username', async (request, response, next) => {
-    try {
-      const username = Array.isArray(request.params.username)
-        ? request.params.username[0]
-        : request.params.username;
+  router.get(
+    '/:username',
+    optionalAuth(resolvedAuthUserStore),
+    async (request, response, next) => {
+      try {
+        const username = Array.isArray(request.params.username)
+          ? request.params.username[0]
+          : request.params.username;
 
-      const result = await service.getProfile(username);
-      response.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  });
+        const result = await service.getProfile(
+          username,
+          getOptionalAuthenticatedUser(request),
+        );
+        response.status(200).json(result);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   return router;
 };

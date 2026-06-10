@@ -50,6 +50,37 @@ export const requireAuth =
     }
   };
 
+export const optionalAuth =
+  (userStore: AuthUserStore) =>
+  async (request: Request, _response: Response, next: NextFunction) => {
+    try {
+      const authorizationHeader = request.headers.authorization;
+
+      if (!authorizationHeader?.startsWith('Bearer ')) {
+        next();
+        return;
+      }
+
+      const token = authorizationHeader.slice('Bearer '.length).trim();
+
+      if (!token) {
+        next();
+        return;
+      }
+
+      const { userId } = verifyAuthToken(token);
+      const user = await userStore.findById(userId);
+
+      if (user) {
+        (request as AuthenticatedRequest).authUser = user;
+      }
+
+      next();
+    } catch {
+      next();
+    }
+  };
+
 export const getAuthenticatedUser = (request: Request) => {
   const user = (request as AuthenticatedRequest).authUser;
 
@@ -63,3 +94,6 @@ export const getAuthenticatedUser = (request: Request) => {
 
   return user;
 };
+
+export const getOptionalAuthenticatedUser = (request: Request) =>
+  (request as AuthenticatedRequest).authUser ?? null;

@@ -7,4 +7,5 @@ export type UserProfile = {
   followersCount: number;
   followingCount: number;
   tweetsCount: number;
+  isFollowing: boolean;
 };

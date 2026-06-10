@@ -1,9 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { PageShell } from '../components/PageShell';
+import { ApiError } from '../lib/api';
 import { useAuth } from '../modules/auth/use-auth';
+import {
+  followUserRequest,
+  unfollowUserRequest,
+} from '../modules/follows/follow-api';
 import {
   getProfileRequest,
   getProfileTweetsRequest,
@@ -79,39 +84,80 @@ const ProfileTweetCard = ({ tweet }: { tweet: ProfileTweet }) => (
   </article>
 );
 
-const ProfileSummaryCard = ({ user }: { user: ProfileUser }) => (
+const ProfileSummaryCard = ({
+  currentUserId,
+  followError,
+  isFollowPending,
+  onToggleFollow,
+  user,
+}: {
+  currentUserId?: string;
+  followError: string | null;
+  isFollowPending: boolean;
+  onToggleFollow: () => void;
+  user: ProfileUser;
+}) => (
   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-    <div className="flex items-center gap-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-brand-100 text-lg font-semibold text-brand-700">
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt={`${user.name} avatar`}
-            className="h-full w-full rounded-[1.5rem] object-cover"
-          />
-        ) : (
-          getInitials(user.name)
-        )}
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-brand-100 text-lg font-semibold text-brand-700">
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={`${user.name} avatar`}
+              className="h-full w-full rounded-[1.5rem] object-cover"
+            />
+          ) : (
+            getInitials(user.name)
+          )}
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold text-slate-950">{user.name}</h3>
+          <p className="text-sm text-slate-500">@{user.username}</p>
+        </div>
       </div>
-      <div className="min-w-0">
-        <h3 className="text-lg font-semibold text-slate-950">{user.name}</h3>
-        <p className="text-sm text-slate-500">@{user.username}</p>
-      </div>
+      {currentUserId && currentUserId !== user.id ? (
+        <button
+          type="button"
+          onClick={onToggleFollow}
+          disabled={isFollowPending}
+          className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+            user.isFollowing
+              ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+              : 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600'
+          } disabled:cursor-not-allowed disabled:opacity-70`}
+        >
+          {isFollowPending
+            ? user.isFollowing
+              ? 'Unfollowing...'
+              : 'Following...'
+            : user.isFollowing
+              ? 'Unfollow'
+              : 'Follow'}
+        </button>
+      ) : null}
     </div>
 
     <p className="mt-4 text-sm leading-6 text-slate-600">
       {user.bio ?? 'No bio yet.'}
     </p>
+
+    {followError ? (
+      <p className="mt-3 text-sm text-rose-600">{followError}</p>
+    ) : null}
   </section>
 );
 
 export const ProfilePage = () => {
   const { username } = useParams();
-  const { token } = useAuth();
+  const { currentUser, token } = useAuth();
+  const queryClient = useQueryClient();
+  const [followError, setFollowError] = useState<string | null>(null);
   const resolvedUsername = username?.trim() ?? '';
+  const profileQueryKey = ['profile', resolvedUsername] as const;
 
   const profileQuery = useQuery({
-    queryKey: ['profile', resolvedUsername],
+    queryKey: profileQueryKey,
     queryFn: () => getProfileRequest(token!, resolvedUsername),
     enabled: Boolean(token) && resolvedUsername.length > 0,
     retry: false,
@@ -122,6 +168,67 @@ export const ProfilePage = () => {
     queryFn: () => getProfileTweetsRequest(token!, resolvedUsername),
     enabled: Boolean(token) && resolvedUsername.length > 0,
     retry: false,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!token || !profileQuery.data?.user) {
+        throw new Error('Authentication is required.');
+      }
+
+      return profileQuery.data.user.isFollowing
+        ? unfollowUserRequest(token, profileQuery.data.user.id)
+        : followUserRequest(token, profileQuery.data.user.id);
+    },
+    onMutate: async () => {
+      setFollowError(null);
+      await queryClient.cancelQueries({
+        queryKey: profileQueryKey,
+      });
+
+      const previousProfile = queryClient.getQueryData<{ user: ProfileUser }>(
+        profileQueryKey,
+      );
+
+      queryClient.setQueryData<{ user: ProfileUser }>(
+        profileQueryKey,
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            user: {
+              ...current.user,
+              isFollowing: !current.user.isFollowing,
+              followersCount: current.user.isFollowing
+                ? Math.max(0, current.user.followersCount - 1)
+                : current.user.followersCount + 1,
+            },
+          };
+        },
+      );
+
+      return {
+        previousProfile,
+      };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousProfile) {
+        queryClient.setQueryData(profileQueryKey, context.previousProfile);
+      }
+
+      setFollowError(
+        error instanceof ApiError
+          ? error.message
+          : 'We could not update the follow state right now.',
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: profileQueryKey,
+      });
+    },
   });
 
   const isLoading = profileQuery.isPending || tweetsQuery.isPending;
@@ -181,7 +288,15 @@ export const ProfilePage = () => {
 
         {profileQuery.data?.user && !isLoading && !isError ? (
           <>
-            <ProfileSummaryCard user={profileQuery.data.user} />
+            <ProfileSummaryCard
+              currentUserId={currentUser?.id}
+              followError={followError}
+              isFollowPending={followMutation.isPending}
+              onToggleFollow={() => {
+                followMutation.mutate();
+              }}
+              user={profileQuery.data.user}
+            />
 
             <section className="grid gap-3 sm:grid-cols-3">
               <ProfileStat

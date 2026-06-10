@@ -61,6 +61,7 @@ const createProfileUser = (overrides?: Record<string, unknown>) => ({
   followersCount: 12,
   followingCount: 7,
   tweetsCount: 2,
+  isFollowing: false,
   ...overrides,
 });
 
@@ -897,6 +898,290 @@ describe('Profile page', () => {
     expect(screen.getByText(/^12$/i)).toBeInTheDocument();
     expect(screen.getByText(/^7$/i)).toBeInTheDocument();
     expect(screen.getByText(/^2$/i)).toBeInTheDocument();
+  });
+
+  it('does not show a follow button on your own profile', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_demo',
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    await screen.findByText(/shipping the flock one commit at a time/i);
+    expect(
+      screen.queryByRole('button', { name: /follow|unfollow/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders a follow button for another profile', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/kevin');
+
+    expect(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('follows another user successfully', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            followersCount: 12,
+            isFollowing: false,
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          follow: {
+            followerId: 'user_demo',
+            followingId: 'user_kevin',
+            createdAt: '2026-01-12T10:00:00.000Z',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            followersCount: 13,
+            isFollowing: true,
+          }),
+        }),
+      );
+
+    renderApp('/profile/kevin');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    );
+
+    await screen.findByRole('button', { name: /^unfollow$/i });
+    expect(screen.getByText(/^13$/i)).toBeInTheDocument();
+  });
+
+  it('unfollows another user successfully', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            followersCount: 13,
+            isFollowing: true,
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          success: true,
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            followersCount: 12,
+            isFollowing: false,
+          }),
+        }),
+      );
+
+    renderApp('/profile/kevin');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    );
+
+    await screen.findByRole('button', { name: /^follow$/i });
+    expect(screen.getByText(/^12$/i)).toBeInTheDocument();
+  });
+
+  it('disables the follow button while the mutation is pending', async () => {
+    let resolveFollow: ((value: Response) => void) | undefined;
+    const pendingFollow = new Promise<Response>((resolve) => {
+      resolveFollow = resolve;
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            isFollowing: false,
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      )
+      .mockImplementationOnce(() => pendingFollow)
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            followersCount: 13,
+            isFollowing: true,
+          }),
+        }),
+      );
+
+    renderApp('/profile/kevin');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    );
+
+    expect(
+      await screen.findByRole('button', { name: /ing\.\.\.$/i }),
+    ).toBeDisabled();
+
+    resolveFollow?.(
+      createJsonResponse({
+        follow: {
+          followerId: 'user_demo',
+          followingId: 'user_kevin',
+          createdAt: '2026-01-12T10:00:00.000Z',
+        },
+      }),
+    );
+    await screen.findByRole('button', { name: /^unfollow$/i });
+  });
+
+  it('shows a friendly message when follow mutation fails', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            isFollowing: false,
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Could not update follow state right now.',
+            },
+          },
+          500,
+        ),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            id: 'user_kevin',
+            username: 'kevin',
+            name: 'Kevin',
+            isFollowing: false,
+          }),
+        }),
+      );
+
+    renderApp('/profile/kevin');
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^follow$/i }),
+    );
+
+    expect(
+      await screen.findByText(/could not update follow state right now/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^follow$/i })).toBeEnabled();
   });
 
   it('renders user tweets', async () => {
