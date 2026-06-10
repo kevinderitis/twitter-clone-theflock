@@ -43,6 +43,15 @@ const createTimelineTweet = (overrides?: Record<string, unknown>) => ({
   ...overrides,
 });
 
+const createSearchUser = (overrides?: Record<string, unknown>) => ({
+  id: 'user_search_1',
+  username: 'kevin',
+  name: 'Kevin',
+  bio: 'Building The Flock one slice at a time.',
+  avatarUrl: null,
+  ...overrides,
+});
+
 const renderApp = (initialEntry: string) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -620,5 +629,167 @@ describe('Timeline page', () => {
       }),
     );
     expect(await screen.findByText(/timeline refreshed/i)).toBeInTheDocument();
+  });
+});
+
+describe('Search page', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('theflock.auth.token', 'demo-token');
+    vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('renders the search page', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        user: createDemoUser(),
+      }),
+    );
+
+    renderApp('/search');
+
+    expect(
+      await screen.findByRole('heading', {
+        name: /find people worth following/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/search people/i)).toBeInTheDocument();
+    expect(screen.getByText(/search is ready/i)).toBeInTheDocument();
+  });
+
+  it('does not call the search API for an empty query', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        user: createDemoUser(),
+      }),
+    );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 350);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/users/search'),
+      expect.anything(),
+    );
+  });
+
+  it('renders search results', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kev');
+
+    expect(await screen.findByText(/^Kevin$/i)).toBeInTheDocument();
+    expect(screen.getByText(/@kevin/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/building the flock one slice at a time/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders an empty results state', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'nomatch');
+
+    expect(await screen.findByText(/no results found/i)).toBeInTheDocument();
+  });
+
+  it('renders an error state', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Search failed.',
+            },
+          },
+          500,
+        ),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'demo');
+
+    expect(
+      await screen.findByText(/we could not load search results/i),
+    ).toBeInTheDocument();
+  });
+
+  it('links each search result to the profile page', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          users: [createSearchUser()],
+        }),
+      );
+
+    renderApp('/search');
+
+    await screen.findByText(/search is ready/i);
+    await user.type(screen.getByLabelText(/search people/i), 'kevin');
+
+    expect(await screen.findByRole('link', { name: /kevin/i })).toHaveAttribute(
+      'href',
+      '/profile/kevin',
+    );
   });
 });
