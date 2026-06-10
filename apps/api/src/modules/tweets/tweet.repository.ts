@@ -88,6 +88,12 @@ export class PrismaTweetStore implements TweetStore {
     return Boolean(user);
   }
 
+  async countTweetsByAuthorId(authorId: string) {
+    return prisma.tweet.count({
+      where: { authorId },
+    });
+  }
+
   async deleteTweet(id: string) {
     await prisma.tweet.delete({
       where: { id },

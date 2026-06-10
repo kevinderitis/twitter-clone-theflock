@@ -83,6 +83,7 @@ class InMemoryTweetStore implements TweetStore {
         name: author.name,
         avatarUrl: author.avatarUrl,
       },
+      likesCount: 0,
     };
 
     this.tweets.set(tweet.id, tweet);
@@ -92,6 +93,22 @@ class InMemoryTweetStore implements TweetStore {
 
   async findTweetById(id: string) {
     return this.tweets.get(id) ?? null;
+  }
+
+  async findTweetsByUsername(username: string, limit: number) {
+    return [...this.tweets.values()]
+      .filter((tweet) => tweet.author.username === username)
+      .slice(0, limit);
+  }
+
+  async userExistsByUsername(username: string) {
+    return Boolean(await this.userStore.findByUsername(username));
+  }
+
+  async countTweetsByAuthorId(authorId: string) {
+    return [...this.tweets.values()].filter(
+      (tweet) => tweet.authorId === authorId,
+    ).length;
   }
 
   async deleteTweet(id: string) {

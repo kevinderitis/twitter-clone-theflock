@@ -123,6 +123,18 @@ class InMemoryFollowStore implements FollowStore {
       .slice(0, query.limit);
   }
 
+  async countFollowers(userId: string) {
+    return [...this.follows.values()].filter(
+      (follow) => follow.followingId === userId,
+    ).length;
+  }
+
+  async countFollowing(userId: string) {
+    return [...this.follows.values()].filter(
+      (follow) => follow.followerId === userId,
+    ).length;
+  }
+
   listByFollower(followerId: string) {
     return [...this.follows.values()].filter(
       (follow) => follow.followerId === followerId,

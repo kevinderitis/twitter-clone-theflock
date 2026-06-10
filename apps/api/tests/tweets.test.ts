@@ -110,6 +110,12 @@ class InMemoryTweetStore implements TweetStore {
     return Boolean(await this.userStore.findByUsername(username));
   }
 
+  async countTweetsByAuthorId(authorId: string) {
+    return [...this.tweets.values()].filter(
+      (tweet) => tweet.authorId === authorId,
+    ).length;
+  }
+
   async deleteTweet(id: string) {
     this.tweets.delete(id);
   }

@@ -108,4 +108,20 @@ export class PrismaFollowStore implements FollowStore {
 
     return users.map(toFollowProfile);
   }
+
+  async countFollowers(userId: string) {
+    return prisma.follow.count({
+      where: {
+        followingId: userId,
+      },
+    });
+  }
+
+  async countFollowing(userId: string) {
+    return prisma.follow.count({
+      where: {
+        followerId: userId,
+      },
+    });
+  }
 }

@@ -26,5 +26,6 @@ export interface TweetStore {
   findTweetById(id: string): Promise<TweetRecord | null>;
   findTweetsByUsername(username: string, limit: number): Promise<TweetRecord[]>;
   userExistsByUsername(username: string): Promise<boolean>;
+  countTweetsByAuthorId(authorId: string): Promise<number>;
   deleteTweet(id: string): Promise<void>;
 }

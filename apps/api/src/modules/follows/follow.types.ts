@@ -31,4 +31,6 @@ export interface FollowStore {
     userId: string,
     query: FollowListQuery,
   ): Promise<FollowProfile[]>;
+  countFollowers(userId: string): Promise<number>;
+  countFollowing(userId: string): Promise<number>;
 }

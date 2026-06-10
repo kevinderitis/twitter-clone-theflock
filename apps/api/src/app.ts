@@ -10,6 +10,8 @@ import type { FollowStore } from './modules/follows/follow.types.js';
 import { createLikeRouter } from './modules/likes/like.router.js';
 import { LikeService } from './modules/likes/like.service.js';
 import type { LikeStore } from './modules/likes/like.types.js';
+import { createProfileRouter } from './modules/profile/profile.router.js';
+import { ProfileService } from './modules/profile/profile.service.js';
 import { createTimelineRouter } from './modules/timeline/timeline.router.js';
 import { TimelineService } from './modules/timeline/timeline.service.js';
 import type { TimelineStore } from './modules/timeline/timeline.types.js';
@@ -27,6 +29,7 @@ type AppDependencies = {
   followStore?: FollowStore;
   likeService?: LikeService;
   likeStore?: LikeStore;
+  profileService?: ProfileService;
   timelineService?: TimelineService;
   timelineStore?: TimelineStore;
   tweetService?: TweetService;
@@ -42,6 +45,7 @@ export const createApp = ({
   followStore,
   likeService,
   likeStore,
+  profileService,
   timelineService,
   timelineStore,
   tweetService,
@@ -101,6 +105,15 @@ export const createApp = ({
       authUserStore,
       userSearchService,
       userSearchStore,
+    }),
+  );
+  app.use(
+    '/users',
+    createProfileRouter({
+      authUserStore,
+      followStore,
+      profileService,
+      tweetStore,
     }),
   );
   app.use(

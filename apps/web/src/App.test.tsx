@@ -52,6 +52,34 @@ const createSearchUser = (overrides?: Record<string, unknown>) => ({
   ...overrides,
 });
 
+const createProfileUser = (overrides?: Record<string, unknown>) => ({
+  id: 'user_profile',
+  username: 'demo',
+  name: 'Demo User',
+  bio: 'Shipping The Flock one commit at a time.',
+  avatarUrl: null,
+  followersCount: 12,
+  followingCount: 7,
+  tweetsCount: 2,
+  ...overrides,
+});
+
+const createProfileTweet = (overrides?: Record<string, unknown>) => ({
+  id: 'tweet_profile_1',
+  content: 'Profile tweet from the backend.',
+  authorId: 'user_profile',
+  createdAt: '2026-01-11T10:00:00.000Z',
+  updatedAt: '2026-01-11T10:00:00.000Z',
+  likesCount: 3,
+  author: {
+    id: 'user_profile',
+    username: 'demo',
+    name: 'Demo User',
+    avatarUrl: null,
+  },
+  ...overrides,
+});
+
 const renderApp = (initialEntry: string) => {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -791,5 +819,168 @@ describe('Search page', () => {
       'href',
       '/profile/kevin',
     );
+  });
+});
+
+describe('Profile page', () => {
+  beforeEach(() => {
+    window.localStorage.setItem('theflock.auth.token', 'demo-token');
+    vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a loading state while the profile is fetching', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        user: createDemoUser(),
+      }),
+    );
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(
+              createJsonResponse({
+                user: createProfileUser(),
+              }),
+            );
+          }, 50);
+        }),
+    );
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse({
+        tweets: [createProfileTweet()],
+      }),
+    );
+
+    renderApp('/profile/demo');
+
+    expect(await screen.findByText(/loading profile/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/shipping the flock one commit at a time/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders profile info', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    expect(await screen.findAllByText(/^Demo User$/i)).not.toHaveLength(0);
+    expect(screen.getAllByText(/@demo/i).length).toBeGreaterThan(0);
+    expect(
+      await screen.findByText(/shipping the flock one commit at a time/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^12$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^7$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^2$/i)).toBeInTheDocument();
+  });
+
+  it('renders user tweets', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [createProfileTweet()],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    expect(
+      await screen.findByText(/profile tweet from the backend/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^3$/i)).toBeInTheDocument();
+  });
+
+  it('renders an empty tweets state', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createProfileUser({
+            tweetsCount: 0,
+          }),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [],
+        }),
+      );
+
+    renderApp('/profile/demo');
+
+    expect(await screen.findByText(/no tweets yet/i)).toBeInTheDocument();
+  });
+
+  it('renders an error state', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          user: createDemoUser(),
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse(
+          {
+            error: {
+              code: 'USER_NOT_FOUND',
+              message: 'User not found.',
+            },
+          },
+          404,
+        ),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          tweets: [],
+        }),
+      );
+
+    renderApp('/profile/missing');
+
+    expect(
+      await screen.findByText(/we could not load this profile/i),
+    ).toBeInTheDocument();
   });
 });
