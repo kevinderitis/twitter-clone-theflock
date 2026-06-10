@@ -42,9 +42,7 @@ export const createProfileRouter = ({
     optionalAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const username = Array.isArray(request.params.username)
-          ? request.params.username[0]
-          : request.params.username;
+        const username = request.params.username;
 
         const result = await service.getProfile(
           username,

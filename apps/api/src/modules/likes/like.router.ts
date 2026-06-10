@@ -34,9 +34,7 @@ export const createLikeRouter = ({
     requireAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const tweetId = Array.isArray(request.params.tweetId)
-          ? request.params.tweetId[0]
-          : request.params.tweetId;
+        const tweetId = request.params.tweetId;
 
         const result = await service.likeTweet(
           tweetId,
@@ -54,9 +52,7 @@ export const createLikeRouter = ({
     requireAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const tweetId = Array.isArray(request.params.tweetId)
-          ? request.params.tweetId[0]
-          : request.params.tweetId;
+        const tweetId = request.params.tweetId;
 
         const result = await service.unlikeTweet(
           tweetId,

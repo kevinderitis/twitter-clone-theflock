@@ -46,9 +46,7 @@ export const createTweetRouter = ({
 
   router.get('/:tweetId', async (request, response, next) => {
     try {
-      const tweetId = Array.isArray(request.params.tweetId)
-        ? request.params.tweetId[0]
-        : request.params.tweetId;
+      const tweetId = request.params.tweetId;
 
       const result = await service.getTweetById(tweetId);
       response.status(200).json(result);
@@ -62,9 +60,7 @@ export const createTweetRouter = ({
     requireAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const tweetId = Array.isArray(request.params.id)
-          ? request.params.id[0]
-          : request.params.id;
+        const tweetId = request.params.id;
 
         const result = await service.deleteTweet(
           tweetId,
@@ -82,9 +78,7 @@ export const createTweetRouter = ({
     optionalAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const username = Array.isArray(request.params.username)
-          ? request.params.username[0]
-          : request.params.username;
+        const username = request.params.username;
 
         const authUser = getOptionalAuthenticatedUser(request);
         const result = await service.getTweetsByUsername(

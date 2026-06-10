@@ -30,9 +30,7 @@ export const createFollowRouter = ({
     requireAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const targetUserId = Array.isArray(request.params.userId)
-          ? request.params.userId[0]
-          : request.params.userId;
+        const targetUserId = request.params.userId;
 
         const result = await service.followUser(
           targetUserId,
@@ -50,9 +48,7 @@ export const createFollowRouter = ({
     requireAuth(resolvedAuthUserStore),
     async (request, response, next) => {
       try {
-        const targetUserId = Array.isArray(request.params.userId)
-          ? request.params.userId[0]
-          : request.params.userId;
+        const targetUserId = request.params.userId;
 
         const result = await service.unfollowUser(
           targetUserId,
@@ -83,9 +79,7 @@ export const createFollowRouter = ({
 
   router.get('/:username/following', async (request, response, next) => {
     try {
-      const username = Array.isArray(request.params.username)
-        ? request.params.username[0]
-        : request.params.username;
+      const username = request.params.username;
       const limit = Array.isArray(request.query.limit)
         ? request.query.limit[0]
         : request.query.limit;
