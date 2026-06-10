@@ -77,7 +77,10 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-lg py-8 sm:py-16">
+    <div
+      className="mx-auto w-full max-w-lg py-8 sm:py-16"
+      data-testid="login-page"
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-700">
         Account
       </p>
@@ -89,9 +92,11 @@ export const LoginPage = () => {
           title="Welcome back"
           subtitle="Sign in to see what your flock is sharing."
           submitLabel="Sign in"
+          submitTestId="login-submit"
           isSubmitting={loginMutation.isPending}
           errorMessage={submissionError?.message ?? null}
           errorDetails={submissionError?.details}
+          formTestId="login-form"
           onSubmit={handleSubmit}
           footer={
             <>

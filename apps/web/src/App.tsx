@@ -63,7 +63,10 @@ export const App = () => {
         </nav>
 
         {isAuthenticated && currentUser ? (
-          <div className="mt-auto rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4">
+          <div
+            className="mt-auto rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4"
+            data-testid="sidebar-current-user"
+          >
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
                 {currentUser.name
@@ -87,6 +90,7 @@ export const App = () => {
               onClick={() => {
                 void logout();
               }}
+              data-testid="sidebar-logout"
               className="mt-4 w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700 transition hover:bg-slate-100"
             >
               Log out

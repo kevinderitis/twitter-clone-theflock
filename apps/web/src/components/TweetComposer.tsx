@@ -15,6 +15,7 @@ export const TweetComposer = () => {
     message: string;
     details?: string[];
   } | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const trimmedContent = content.trim();
   const isEmpty = trimmedContent.length === 0;
@@ -32,12 +33,14 @@ export const TweetComposer = () => {
     onSuccess: async () => {
       setContent('');
       setSubmissionError(null);
+      setSuccessMessage('Tweet posted.');
       await queryClient.invalidateQueries({
         queryKey: ['timeline'],
       });
     },
     onError: (error) => {
       if (error instanceof ApiError) {
+        setSuccessMessage(null);
         setSubmissionError({
           message: error.message,
           details: error.details,
@@ -45,6 +48,7 @@ export const TweetComposer = () => {
         return;
       }
 
+      setSuccessMessage(null);
       setSubmissionError({
         message: 'Something went wrong. Please try again.',
       });
@@ -59,6 +63,7 @@ export const TweetComposer = () => {
     }
 
     setSubmissionError(null);
+    setSuccessMessage(null);
     createTweetMutation.mutate({
       content: trimmedContent,
     });
@@ -66,6 +71,7 @@ export const TweetComposer = () => {
 
   return (
     <form
+      data-testid="tweet-composer"
       className="rounded-[1.75rem] border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur"
       onSubmit={handleSubmit}
     >
@@ -78,8 +84,14 @@ export const TweetComposer = () => {
           <label className="block">
             <span className="sr-only">Tweet content</span>
             <textarea
+              data-testid="tweet-composer-input"
               value={content}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                if (successMessage) {
+                  setSuccessMessage(null);
+                }
+              }}
               maxLength={400}
               rows={3}
               placeholder="What's happening?"
@@ -100,11 +112,21 @@ export const TweetComposer = () => {
             <button
               type="submit"
               disabled={isSubmitDisabled || createTweetMutation.isPending}
+              data-testid="tweet-composer-submit"
               className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {createTweetMutation.isPending ? 'Posting...' : 'Post'}
             </button>
           </div>
+
+          {successMessage ? (
+            <p
+              className="mt-4 text-sm font-semibold text-emerald-700"
+              data-testid="tweet-composer-success"
+            >
+              {successMessage}
+            </p>
+          ) : null}
 
           {submissionError ? (
             <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

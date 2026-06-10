@@ -31,6 +31,8 @@ Twitter/X clone technical challenge scaffold.
 - `npm run test`
 - `npm run build`
 - `npm run db:setup`
+- `npm run test:e2e`
+- `npm run test:e2e:ui`
 
 ## Applications
 
@@ -125,6 +127,67 @@ Password123!
   - `/register`
   - `/search`
   - `/profile/:username`
+
+## End-to-End Testing
+
+Playwright covers the most stable authenticated user flows in the first E2E slice:
+
+- login and logout
+- timeline rendering
+- tweet creation
+- search
+- profile loading
+- follow/unfollow from profile
+
+### Prerequisites
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Install the Playwright Chromium browser:
+
+```bash
+npx playwright install chromium
+```
+
+3. Start the Dockerized app and seed the database:
+
+```bash
+docker compose up --build -d db
+docker compose run --rm api npm run db:setup --workspace api
+docker compose up --build -d
+```
+
+### Run Playwright Locally
+
+Run the headless suite:
+
+```bash
+npm run test:e2e
+```
+
+Open the Playwright UI runner:
+
+```bash
+npm run test:e2e:ui
+```
+
+### Optional Environment Overrides
+
+By default, Playwright targets:
+
+- web: `http://localhost:5173`
+- api: `http://localhost:3000`
+
+You can override them if needed:
+
+```bash
+PLAYWRIGHT_BASE_URL=http://localhost:5173
+PLAYWRIGHT_API_URL=http://localhost:3000
+```
 
 ## Next Steps
 

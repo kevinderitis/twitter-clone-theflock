@@ -160,7 +160,10 @@ const ProfileTweetCard = ({
   });
 
   return (
-    <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+    <article
+      className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm"
+      data-testid={`profile-tweet-${tweet.id}`}
+    >
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-100 text-sm font-semibold text-brand-700">
           {tweet.author.avatarUrl ? (
@@ -266,6 +269,7 @@ const ProfileSummaryCard = ({
           type="button"
           onClick={onToggleFollow}
           disabled={isFollowPending}
+          data-testid="profile-follow-toggle"
           className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
             user.isFollowing
               ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
@@ -397,9 +401,12 @@ export const ProfilePage = () => {
         </div>
       }
     >
-      <div>
+      <div data-testid="profile-page">
         {!isLoading && !isError && profileQuery.data?.user ? (
-          <div className="sticky top-0 z-10 space-y-4 rounded-[1.75rem] border-b border-slate-200 bg-white">
+          <div
+            className="sticky top-0 z-10 space-y-4 rounded-[1.75rem] border-b border-slate-200 bg-white"
+            data-testid="profile-summary"
+          >
             <ProfileSummaryCard
               currentUserId={currentUser?.id}
               followError={followError}
@@ -464,7 +471,7 @@ export const ProfilePage = () => {
           ) : null}
 
           {tweets.length > 0 && !isLoading && !isError ? (
-            <div className="space-y-4">
+            <div className="space-y-4" data-testid="profile-tweets">
               {tweets.map((tweet) => (
                 <ProfileTweetCard key={tweet.id} tweet={tweet} profileUsername={resolvedUsername} />
               ))}

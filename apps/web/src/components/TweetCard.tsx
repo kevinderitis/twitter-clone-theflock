@@ -131,7 +131,10 @@ export const TweetCard = ({ tweet }: { tweet: TimelineTweet }) => {
   });
 
   return (
-    <article className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+    <article
+      className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm"
+      data-testid={`timeline-tweet-${tweet.id}`}
+    >
       <div className="flex items-start gap-3">
         <Link
           to={`/profile/${tweet.author.username}`}
@@ -174,6 +177,7 @@ export const TweetCard = ({ tweet }: { tweet: TimelineTweet }) => {
               }}
               disabled={likeMutation.isPending}
               aria-pressed={likedByMe}
+              data-testid={`timeline-like-button-${tweet.id}`}
               className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
                 likedByMe
                   ? 'border-brand-500 bg-brand-50 text-brand-700'
@@ -191,7 +195,10 @@ export const TweetCard = ({ tweet }: { tweet: TimelineTweet }) => {
 
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
               <span>Likes</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+              <span
+                className="rounded-full bg-slate-100 px-2 py-1 text-slate-600"
+                data-testid={`timeline-like-count-${tweet.id}`}
+              >
                 {likesCount}
               </span>
             </div>

@@ -76,7 +76,10 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-lg py-8 sm:py-16">
+    <div
+      className="mx-auto w-full max-w-lg py-8 sm:py-16"
+      data-testid="register-page"
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-700">
         Onboarding
       </p>
@@ -88,9 +91,11 @@ export const RegisterPage = () => {
           title="Join The Flock"
           subtitle="Join the conversation and start sharing your thoughts."
           submitLabel="Create account"
+          submitTestId="register-submit"
           isSubmitting={registerMutation.isPending}
           errorMessage={submissionError?.message ?? null}
           errorDetails={submissionError?.details}
+          formTestId="register-form"
           onSubmit={handleSubmit}
           footer={
             <>

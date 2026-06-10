@@ -39,7 +39,7 @@ export const TimelinePage = () => {
         </div>
       }
     >
-      <div>
+      <div data-testid="timeline-page">
         <div className="sticky top-0 z-10 rounded-[1.75rem] bg-white/95 backdrop-blur">
           <TweetComposer />
         </div>
@@ -78,7 +78,7 @@ export const TimelinePage = () => {
           ) : null}
 
           {hasTweets ? (
-            <div className="space-y-4">
+            <div className="space-y-4" data-testid="timeline-feed">
               {tweets.map((tweet) => (
                 <TweetCard key={tweet.id} tweet={tweet} />
               ))}

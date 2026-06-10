@@ -184,6 +184,7 @@ export const SearchPage = () => {
             Search people
           </span>
           <input
+            data-testid="search-input"
             type="search"
             value={query}
             onChange={(event) => {
@@ -231,11 +232,12 @@ export const SearchPage = () => {
         ) : null}
 
         {users.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3" data-testid="search-results">
             {users.map((user) => (
               <div key={user.id} className="space-y-2">
                 <PublicUserCard
                   user={user as SearchUser}
+                  testId={`search-result-${user.username}`}
                   action={
                     currentUser && currentUser.id !== user.id ? (
                       <CompactFollowButton
@@ -244,6 +246,7 @@ export const SearchPage = () => {
                           followMutation.isPending &&
                           followMutation.variables?.userId === user.id
                         }
+                        testId={`search-follow-toggle-${user.username}`}
                         onClick={() => {
                           followMutation.mutate({
                             isFollowing: user.isFollowing,

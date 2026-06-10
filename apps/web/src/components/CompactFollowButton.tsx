@@ -2,12 +2,14 @@ type CompactFollowButtonProps = {
   isFollowing: boolean;
   isPending: boolean;
   onClick: () => void;
+  testId?: string;
 };
 
 export const CompactFollowButton = ({
   isFollowing,
   isPending,
   onClick,
+  testId,
 }: CompactFollowButtonProps) => {
   return (
     <button
@@ -18,6 +20,7 @@ export const CompactFollowButton = ({
         onClick();
       }}
       disabled={isPending}
+      data-testid={testId}
       className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
         isFollowing
           ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
